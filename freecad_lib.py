@@ -3,6 +3,7 @@
 import FreeCAD, Part
 from FreeCAD import Vector
 from typing import List
+import functools
 
 # (1) ength  : (w)est   (X-)  (s)outh  (Y-)  (d)own   (Z-)
 # (b)readth  : (c)entre (X0)  (m)iddle (YO)  (g)round (Z0)
@@ -112,4 +113,21 @@ class Polyhedron:
         self.wire1 = polygon1.wire
         self.wire2 = polygon2.wire
         self.solid = Part.makeLoft([self.wire1, self.wire2], True, True)
-# constands
+
+class SolidText:
+    def __init__(self, text, position=Vector(0,0,0), height=-1, txt_height=6, spacing = 0.5):
+        self.position = position
+        self.height = height
+        self.txt_height = txt_height
+        self.text = text
+        font = "tc_lasersans.ttf"
+        fontdir = "/Users/Markus/Documents/Projekte/FreeCAD/fonts/"
+        wire_lists = Part.makeWireString(text, fontdir, font, self.txt_height, spacing)
+        self.faces = [Part.Face(wire) for wires in wire_lists for wire in wires]
+        #print(self.faces)
+        #self.face = fusePartList([fusePartList() for c in self.wire_lists])
+        def fusePartList(l):
+            return functools.reduce(lambda a,b : a.fuse(b), l)
+        self.solids = [face.extrude(Vector(0, 0, self.height)) for face in self.faces]
+        self.solid = fusePartList(self.solids)
+        self.solid.Placement = FreeCAD.Placement(self.position, FreeCAD.Rotation(FreeCAD.Vector(0,0,1),0))
