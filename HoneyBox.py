@@ -8,6 +8,7 @@ FreeCAD.newDocument(doc_name)
 FreeCAD.Gui.runCommand('Std_DrawStyle',6) #shaded wireframe
 
 from freecad_lib import *
+from freecad_lib import SolidText
 
 clearance = {"very_loose":  Vector(1.5, 1.5, 1.5),
              "loose":       Vector(1, 1, 1),
@@ -15,7 +16,8 @@ clearance = {"very_loose":  Vector(1.5, 1.5, 1.5),
              "tight":       Vector(0.2, 0.2, 0.2)
              }
 
-
+yellow = (247/255, 197/255, 79/255)
+brown = (123/255, 83/255, 60/255)
 # draw honey glas
 glas_radius = 82/2
 glas_height = 97
@@ -42,7 +44,7 @@ wall_thikness = 10
 overlap = 25
 lidThickness = 10
 
-boxHight = 110 + lidThickness
+boxHight = 130 + lidThickness
 boxWidth = boxHight + overlap
 boxLength = boxWidth+overlap
 outerBody = Box(Vector(-boxLength/2, -boxWidth/2, 0), 
@@ -82,6 +84,7 @@ body = body.cut(lidClearance.solid)
 lid = Box(Vector(-lidWidth/2 , -lidHeight/2 , innerClearance.u - lidThickness) + clearance['loose']/2, 
           Vector(lidWidth/2, lidHeight/2, innerClearance.u) - clearance['loose']/2, [Vector(15,15,0)])
 lidBody = lid.solid
+#lidBody = lidBody.makeFillet(2, lidBody.Edges)
 
 lidHoleHeight = lidHeight - 20
 lidHoleWidth = 5
@@ -194,22 +197,122 @@ bodyFeature.ViewObject.ShapeColor = (1,1,1)
 # show bframe
 bodyFeature = Part.show(body, 'HoneyBoxBody')
 bodyFeature.ViewObject.Transparency = 50
-bodyFeature.ViewObject.ShapeColor = (0.20,0.60,0.80)
+bodyFeature.ViewObject.ShapeColor = brown
 
 bodyFeature = Part.show(lidBody, 'HoneyBoxLid')
 bodyFeature.ViewObject.Transparency = 50
-bodyFeature.ViewObject.ShapeColor = (0.50,0.10,0.80)
+bodyFeature.ViewObject.ShapeColor = yellow
 
 bodyFeature = Part.show(hookBody, 'Hook')
 bodyFeature.ViewObject.Transparency = 50
 bodyFeature.ViewObject.ShapeColor = (0.50,0.40,0.80)
 
-draw_honey_glas(glas_radius, glas_height, lid_hight, Vector(innerClearance.c,innerClearance.s,innerClearance.g-lidClearance.h/2))
+#draw_honey_glas(glas_radius, glas_height, lid_hight, Vector(innerClearance.c,innerClearance.s,innerClearance.g-lidClearance.h/2))
+
+# draw coin box body
+offset = Vector(-boxLength, 0, 0)
+coinBox = Box(Vector(-boxLength/2, -boxWidth/2, 0) + offset, 
+              Vector(boxLength/2, boxWidth/2, boxHight) + offset,
+              [Vector(15,15,0)]
+              )
+coinBoxBody = coinBox.solid
+
+# inner clearance
+coinBoxInnerClearance = Box(coinBox.vWSD + Vector(wall_thikness, wall_thikness, wall_thikness), 
+                            coinBox.vENU + Vector(-wall_thikness, -wall_thikness, 0),
+                            [Vector(15,15,0)]
+                            )
+coinBoxBody = coinBoxBody.cut(coinBoxInnerClearance.solid)
+
+coinBoxLid = Box(coinBoxInnerClearance.vWSU + clearance['loose']/2 + Vector(0, 0, -lidThickness), 
+                 coinBoxInnerClearance.vENU - clearance['loose']/2, [Vector(15,15,0)])
+coinBoxLidBody = coinBoxLid.solid
+#coinBoxLidBody = coinBoxLidBody.makeFillet(2, coinBoxLidBody.Edges)
+
+#coinBoxSouthClearance = Box(coinBox.vWSD + Vector(wall_thikness*2, wall_thikness, wall_thikness), 
+                            #coinBox.vESU + Vector(-wall_thikness*2, -wall_thikness, 0))
+#coinBoxBody = coinBoxBody.cut(coinBoxSouthClearance.solid)
+
+# (1) ength  : (w)est   (X-)  (s)outh  (Y-)  (d)own   (Z-)
+# (b)readth  : (c)entre (X0)  (m)iddle (YO)  (g)round (Z0)
+# (h) eight  : (e)ast   (X+)  (n) orth (Y+)  (u)p     (Z+)
+
+# coin acceptor
+ca_dim = Vector(40, 110, 120)
+ca_offset = Vector(40, 0, 0)
+ca_pos = Vector(coinBoxLid.c, coinBoxLid.m, coinBoxLid.u) + ca_offset
+ca = Box(Vector(-ca_dim.x/2, -ca_dim.y/2, 0) + ca_pos,
+         Vector(ca_dim.x/2, ca_dim.y/2, -ca_dim.z) + ca_pos)
+caBody = ca.solid
+
+cap_dim = Vector(65, 123, 6)
+cap = Box(Vector(-cap_dim.x/2, -cap_dim.y/2, cap_dim.z) + ca_pos,
+          Vector(cap_dim.x/2, cap_dim.y/2, 0) + ca_pos)
+capBody = cap.solid
+capBody = capBody.makeFillet(2, [ capBody.Edge3, capBody.Edge6, capBody.Edge9, capBody.Edge11])
+
+pcb_dim = Vector(60, 31, 2)
+pcb_offset = Vector(-40, 20, 0)
+pcb_pos = Vector(coinBoxLid.c, coinBoxLid.m, coinBoxLid.d) + pcb_offset
+pcb = Box(Vector(-pcb_dim.x/2, -pcb_dim.y/2, -pcb_dim.z) + pcb_pos,
+          Vector(pcb_dim.x/2, pcb_dim.y/2, 0) + pcb_pos)
+pcbBody = pcb.solid
+
+pcbDisplay_dim = Vector(30, 20, lidThickness)
+pcbDisplay_offset = Vector(0, 0, 0)
+pcbDisplay_pos = Vector(pcb.c, pcb.m, pcb.u) + pcbDisplay_offset
+pcbDisplayClearance = Box(Vector(-pcbDisplay_dim.x/2, -pcbDisplay_dim.y/2, pcbDisplay_dim.z) + pcbDisplay_pos,
+                           Vector(pcbDisplay_dim.x/2, pcbDisplay_dim.y/2, 0) + pcbDisplay_pos)
+pcbDisplayClearanceBody = pcbDisplayClearance.solid
+# cut out cleance over 
+coinBoxLidBody = coinBoxLidBody.cut(pcbDisplayClearanceBody)
+coinBoxLidBody = coinBoxLidBody.makeFillet(lidThickness-3, [ coinBoxLidBody.Edge25, 
+                                                          coinBoxLidBody.Edge26, 
+                                                          coinBoxLidBody.Edge27, 
+                                                          coinBoxLidBody.Edge28])
+
+
+# 73 mm x 50 mm x 18,5 mm
+relais_dim = Vector(50, 73, 18.5)
+relais_offset = Vector(-40, 0, 0)
+relais_pos = Vector(coinBoxInnerClearance.c, coinBoxInnerClearance.m, coinBoxInnerClearance.d) + relais_offset
+relais = Box(Vector(-relais_dim.x/2, -relais_dim.y/2, relais_dim.z) + relais_pos,
+          Vector(relais_dim.x/2, relais_dim.y/2, 0) + relais_pos)
+relaisBody = relais.solid
+
+honigText = SolidText("Honig 7€", Vector(pcbDisplayClearance.w-20, coinBoxLid.n - 25, coinBoxLid.u))
+coinBoxLidBody = coinBoxLidBody.cut(honigText.solid)
+
+#txtFeature = Part.show(honigText.solid, 'HonigText')
+
+bodyFeature = Part.show(coinBoxBody, 'CoinBoxBody')
+bodyFeature.ViewObject.Transparency = 50
+bodyFeature.ViewObject.ShapeColor = brown
+
+bodyFeature = Part.show(coinBoxLidBody, 'CoinBoxLid')
+bodyFeature.ViewObject.Transparency = 50
+bodyFeature.ViewObject.ShapeColor = yellow
+
+bodyFeature = Part.show(caBody, 'CoinAcceptor')
+bodyFeature.ViewObject.Transparency = 50
+bodyFeature.ViewObject.ShapeColor = (1,1,1)
+
+bodyFeature = Part.show(capBody, 'CoinAcceptorPlate')
+bodyFeature.ViewObject.Transparency = 50
+bodyFeature.ViewObject.ShapeColor = (0xc0/255,0xc0/255,0xc0/255)
+
+bodyFeature = Part.show(pcbBody, 'CoinBoxPcb')
+bodyFeature.ViewObject.Transparency = 50
+bodyFeature.ViewObject.ShapeColor = (0/255.0, 0x8C/255.0, 0x4A/255.0)
+
+bodyFeature = Part.show(relaisBody, 'CoinBoxRelais')
+bodyFeature.ViewObject.Transparency = 50
+bodyFeature.ViewObject.ShapeColor = (0/255.0, 0x8C/255.0, 0x4A/255.0)
 
 # export 
 import Mesh
 
-for obj in ["HoneyBoxBody", "HoneyBoxLid"]:
+for obj in ["HoneyBoxBody", "HoneyBoxLid", "CoinBoxBody"]:
     Mesh.export([FreeCAD.getDocument("HoneyBox").getObject(obj)], 
                 f"/Users/Markus/Documents/Projekte/FreeCAD/stl/{obj}.stl")
 
