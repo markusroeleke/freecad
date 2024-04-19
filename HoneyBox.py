@@ -276,26 +276,25 @@ for pos in [Vector(pcb.c + pcb_holes_dim.x/2, pcb.m + pcb_holes_dim.y/2, pcb.u),
                             Polygon(Vector(0, 0, -3)+pos, pcb_holes_diameter/2, Vector(0,0,1))
                     )
     pcbBody = pcbBody.cut(pcb_holes.solid)
-    #show(pcb_holes, name=f"{pos}")
-    coinBoxLidBody = coinBoxLidBody.cut(cap_holes.solid)
+    coinBoxLidBody = coinBoxLidBody.cut(pcb_holes.solid)
 # encoder hole
-encoder_holes_diameter = 6.5
+encoder_holes_diameter = 7.2
 encoder_pos = Vector(pcbDisplayClearance.c, (pcbDisplayClearance.m + coinBoxLid.s)/2, coinBoxLid.u)
 
-encoder_box = Box(Vector(-15, 15 ,  -7) + encoder_pos,
-                  Vector( 15,-30 , -coinBoxLid.h) + encoder_pos)
+#encoder_box = Box(Vector(-15, 15 ,  -7) + encoder_pos,
+#                  Vector( 15,-30 , -coinBoxLid.h) + encoder_pos)
 
 encoder_hole_screw = Polyhedron(Polygon(Vector(0, 0, 0) + encoder_pos, encoder_holes_diameter/2, Vector(0,0,1)), 
                            Polygon(Vector(0, 0, -coinBoxLid.h)+encoder_pos, encoder_holes_diameter/2, Vector(0,0,1)))
 encoder_holes_diameter_nut = 16
 encoder_hole_nut = Polyhedron(Polygon(Vector(0, 0, 0) + encoder_pos, encoder_holes_diameter_nut/2, Vector(0,0,1)), 
-                              Polygon(Vector(0, 0, -2)+encoder_pos, encoder_holes_diameter_nut/2, Vector(0,0,1)))
+                              Polygon(Vector(0, 0, -coinBoxLid.h+5)+encoder_pos, encoder_holes_diameter_nut/2, Vector(0,0,1)))
 encoder_holes_diameter_notch = 3
-encoder_hole_notch = Polyhedron(Polygon(Vector(0, 6, -6) + encoder_pos, encoder_holes_diameter_notch/2, Vector(0,0,1)), 
-                                Polygon(Vector(0, 6, -7) +encoder_pos, encoder_holes_diameter_notch/2, Vector(0,0,1)))
+encoder_hole_notch = Polyhedron(Polygon(Vector(0, 6, -coinBoxLid.h+1) + encoder_pos, encoder_holes_diameter_notch/2, Vector(0,0,1)), 
+                                Polygon(Vector(0, 6, -coinBoxLid.h) +encoder_pos, encoder_holes_diameter_notch/2, Vector(0,0,1)))
 
 
-coinBoxLidBody = coinBoxLidBody.cut(encoder_box.solid)
+#coinBoxLidBody = coinBoxLidBody.cut(encoder_box.solid)
 coinBoxLidBody = coinBoxLidBody.cut(encoder_hole_screw.solid)
 coinBoxLidBody = coinBoxLidBody.cut(encoder_hole_nut.solid)
 coinBoxLidBody = coinBoxLidBody.cut(encoder_hole_notch.solid)
@@ -372,9 +371,9 @@ bodyFeature.ViewObject.Transparency = 50
 bodyFeature.ViewObject.ShapeColor = (1,1,1)
 
 
-bodyFeature = Part.show(encoder_hole_notch.solid, 'Notch')
-bodyFeature.ViewObject.Transparency = 50
-bodyFeature.ViewObject.ShapeColor = (1,1,1)
+# bodyFeature = Part.show(encoder_hole_notch.solid, 'Notch')
+# bodyFeature.ViewObject.Transparency = 50
+# bodyFeature.ViewObject.ShapeColor = (1,1,1)
 
 bodyFeature = Part.show(capBody, 'CoinAcceptorPlate')
 bodyFeature.ViewObject.Transparency = 50
@@ -408,10 +407,20 @@ bodyFeature.ViewObject.ShapeColor = yellow
 bodyFeature = Part.show(hookBody, 'Hook')
 bodyFeature.ViewObject.Transparency = 50
 bodyFeature.ViewObject.ShapeColor = (0.50,0.40,0.80)
+
+""" Fehler in v1.0:
+1. M4 side slide zu klein -> probedruck
+2. Encoder loch zu klein -> 0.5 mm größer
+3. PCB holes zu klein -> 0.5 mm größer
+4. CAP holes zu klein -> 0.5 mm größer
+
+"""
+
+
 # export 
 import Mesh
 
-for obj in ["HoneyBoxBody", "HoneyBoxLid", "CoinBoxBody", "CoinBoxLid"]:
+for obj in ["HoneyBoxBody", "HoneyBoxLid", "CoinBoxBody", "CoinBoxLid", "m4_side_slide"]:
     Mesh.export([FreeCAD.getDocument("HoneyBox").getObject(obj)], 
                 f"/Users/Markus/Documents/Projekte/FreeCAD/stl/{obj}.stl")
 

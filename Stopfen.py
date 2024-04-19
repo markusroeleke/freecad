@@ -14,28 +14,21 @@ from freecad_lib import SolidText
 diameter = 22
 height = 12
 
-cylinder = Polyhedron(Polygon(Vector(0, 0, 0), diameter/2, Vector(0,0,1)), 
-                     Polygon(Vector(0, 0, height), diameter/2, Vector(0,0,1))
-                )
-cylinderBody = cylinder.solid
+m4_side_slide = Quader("m4_side_slide", 10, 10, 10)
+m4_nut = Nut("side_slide", "M4", normal=Vector(0,1,0),position=Vector(0, 0, 5))
+m4_side_slide.solid = m4_side_slide.solid.cut(m4_nut.slide_clearance.solid)
+m4_side_slide.solid = m4_side_slide.solid.cut(m4_nut.head_clearance.solid)
 
-holeDiameter = 4.5
-holeHeight = 11
-cylinderHole = Polyhedron(Polygon(Vector(0, 0, 0), holeDiameter/2, Vector(0,0,1)), 
-                     Polygon(Vector(0, 0, holeHeight), holeDiameter/2, Vector(0,0,1))
-                )
-cylinderBody = cylinderBody.cut(cylinderHole.solid)
-cylinderBody = cylinderBody.makeFillet(9, [cylinderBody.Edge3])
-cylinderBody = cylinderBody.makeFillet(2, [cylinderBody.Edge8])
 
-bodyFeature = Part.show(cylinderBody, 'cylinderBody')
+bodyFeature = Part.show(m4_side_slide.solid, 'm4_side_slide')
 bodyFeature.ViewObject.Transparency = 50
-bodyFeature.ViewObject.ShapeColor = (0/255.0, 0x8C/255.0, 0x4A/255.0)
+bodyFeature.ViewObject.ShapeColor = (0.50,0.40,0.80)
+
 
 # export 
 import Mesh
 
-for obj in ["cylinderBody"]:
+for obj in ["m4_side_slide"]:
     Mesh.export([FreeCAD.getDocument("Cylinder").getObject(obj)], 
                 f"/Users/Markus/Documents/Projekte/FreeCAD/stl/{obj}.stl")
 # show part

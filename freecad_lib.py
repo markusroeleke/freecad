@@ -113,7 +113,7 @@ class GeneralTolerances:
                 "f": 0.05,
                 "m": 0.10,
                 "c": 0.20,
-                "v": 0.20,
+                "v": 0.35,
             },
             "3_to_6": {
                 "f": 0.05,
@@ -158,7 +158,7 @@ class GeneralTolerances:
                 "v": 8.0,
             },
             "4000_to_8000": {
-                "f": 3.0,
+                "f": 2.5,
                 "m": 3.0,
                 "c": 5.0,
                 "v": 12.0,
@@ -418,7 +418,7 @@ class Nut(Polyhedron):
         clearance_height = self.nut_height * 10
         tolerances = GeneralTolerances()
         clearance_radius = self.nut_radius + tolerances.get_tolerance(
-            self.nut_radius, "c"
+            self.nut_radius, "v"
         )
 
         polygon1 = Polygon(
@@ -438,10 +438,10 @@ class Nut(Polyhedron):
         # slide clearance
 
         slide_clearance_width = self.nut_across_sides + tolerances.get_tolerance(
-            self.nut_across_sides, "c"
+            self.nut_across_sides, "v"
         )
         slide_clearance_height = self.nut_height + tolerances.get_tolerance(
-            self.nut_height, "c"
+            self.nut_height, "v"
         )
 
         polygon1 = Polygon(
