@@ -46,14 +46,14 @@ lidThickness = 10
 
 boxHight = 130 + lidThickness
 boxWidth = boxHight + overlap
-boxLength = boxWidth+overlap
+boxLength = boxWidth #+ overlap
 outerBody = Box(Vector(-boxLength/2, -boxWidth/2, 0), 
                 Vector(boxLength/2, boxWidth/2, boxHight), [Vector(15,15,0)])
 body = outerBody.solid
 
 # inner clearance
 
-innerClearance = Box(outerBody.vWSD + Vector(wall_thikness+overlap, wall_thikness, wall_thikness), 
+innerClearance = Box(outerBody.vWSD + Vector(wall_thikness, wall_thikness, wall_thikness), 
                      outerBody.vENU + Vector(-wall_thikness, -wall_thikness, 0), [Vector(15,15,0)])
 
 body = body.cut(innerClearance.solid)
@@ -71,8 +71,7 @@ for pos in [Vector(innerClearance.w+wall_thikness*3, innerClearance.n-wall_thikn
     body = body.cut(moutingHole.solid)
 # lid and lid clearance
 lidHeight = innerClearance.b
-lidWidth = innerClearance.l+overlap
-
+lidWidth = innerClearance.l#+overlap
 
 lidClearance = Box(Vector(-lidWidth/2, -lidHeight/2 , innerClearance.u - lidThickness), 
                      Vector(lidWidth/2, lidHeight/2, innerClearance.u), [Vector(15,15,0)])
@@ -82,7 +81,7 @@ body = body.cut(lidClearance.solid)
 
 # honey box lid
 lid = Box(Vector(-lidWidth/2 , -lidHeight/2 , innerClearance.u - lidThickness) + clearance['loose']/2, 
-          Vector(lidWidth/2, lidHeight/2, innerClearance.u) - clearance['loose']/2, [Vector(15,15,0)])
+          Vector(lidWidth/2, lidHeight/2, innerClearance.u+clearance['loose'].z/2) - clearance['loose']/2, [Vector(15,15,0)])
 lidBody = lid.solid
 #lidBody = lidBody.makeFillet(2, lidBody.Edges)
 
@@ -111,6 +110,22 @@ hangerHole = Box(Vector(-hook_width/2, -hanger_thickness/2, 0) + hook_position +
 hookBody = hook_plate.solid
 hookBody= hookBody.fuse(hanger.solid)
 hookBody = hookBody.cut(hangerHole.solid)
+
+
+# lock
+lock_width = 73
+lock_height = 58
+lock_depth = 13
+lock_distance = 6.5
+z_offset = hook_plate.d - lock_distance
+
+x_offset = hook_plate.c
+lock = Box(Vector(-lock_depth/2 +x_offset, -lock_height/2 , z_offset - lock_width), 
+           Vector(lock_depth/2+x_offset, lock_height/2 , z_offset), [Vector(2,2,2)])
+
+lockPlate = Box(Vector(outerBody.w, lock.s -2 , innerClearance.d), 
+                Vector(lock.w, lock.n +2, lidClearance.d), [Vector(2,2,2)])
+body = body.fuse(lockPlate.solid)
 
 # adding hock clearance
 hookClearance = Box(Vector(-overlap/2, -hook_hight/2-clearance['very_loose'].y, 0) + hook_position, 
@@ -142,22 +157,6 @@ lidBody = lidBody.cut(hingeHoleLid1.solid)
 lidBody = lidBody.cut(hingeHoleLid2.solid)
 
 
-# lock
-lock_width = 73
-lock_height = 58
-lock_depth = 13
-lock_distance = 6.5
-z_offset = hook_plate.d - lock_distance
-
-lock_clearance_west = hook_plate.c - lock_depth/2
-print(f"lock_clearance_west={lock_clearance_west}", outerBody.w)
-lock_clearance_east = innerClearance.w - 2
-lockClearance = Box(Vector(lock_clearance_west, -lock_height/2 - clearance['loose'].y, outerBody.d), 
-                    Vector(lock_clearance_east,  lock_height/2 + clearance['loose'].y, lidClearance.u))
-print(f"lock_clearance_west = {lock_clearance_west}")
-x_offset = lockClearance.w  + lock_depth/2 
-lock = Box(Vector(-lock_depth/2 +x_offset, -lock_height/2 , z_offset - lock_width), 
-           Vector(lock_depth/2+x_offset, lock_height/2 , z_offset), [Vector(2,2,2)])
 
 # add lock cable clearance
 # cableClearanceWidth = 8
@@ -165,7 +164,7 @@ lock = Box(Vector(-lock_depth/2 +x_offset, -lock_height/2 , z_offset - lock_widt
 #                                Vector(outerBody.e, cableClearanceWidth/2 , cableClearanceWidth))
 # cableClearanceVertical = Box(Vector(lockClearance.c-cableClearanceWidth/2, outerBody.n , 0), 
 #                              Vector( lockClearance.c+cableClearanceWidth/2, outerBody.s , cableClearanceWidth))
-body = body.cut(lockClearance.solid)#.cut(cableClearanceHorizontal.solid).cut(cableClearanceVertical.solid)
+#body = body.cut(lockClearance.solid)#.cut(cableClearanceHorizontal.solid).cut(cableClearanceVertical.solid)
 
 
 # rivet hole in hook and lid
@@ -180,7 +179,7 @@ for y in [12.5, -12.5]:
     lidBody = lidBody.cut(rivetHole3.solid)
     hookBody = hookBody.cut(rivetHole1.solid)
     rivetHole2 = Polyhedron(Polygon(Vector(hook_plate.c, hook_plate.m+y, hook_plate.d), rivet_hole_diameter, Vector(0,0,1)), 
-                           Polygon(Vector(hook_plate.c, hook_plate.m+y, lockClearance.u), rivet_hole_diameter, Vector(0,0,1)))
+                           Polygon(Vector(hook_plate.c, hook_plate.m+y, lid.u), rivet_hole_diameter, Vector(0,0,1)))
     
     body = body.cut(rivetHole2.solid)
     
@@ -188,14 +187,14 @@ for y in [12.5, -12.5]:
 screw_hole_diameter = 4.5
 for y, z in [(36.5/2, -6.5), (-36.5/2, -6.5), (0, -36-6.5)]:
     screwHole = Polyhedron(Polygon(Vector(outerBody.w , lock.m+y, lock.u+z), screw_hole_diameter/2, Vector(1,0,0)), 
-                           Polygon(Vector(lockClearance.w , lock.m+y, lock.u+z), screw_hole_diameter/2, Vector(1,0,0)))
+                           Polygon(Vector(lock.w , lock.m+y, lock.u+z), screw_hole_diameter/2, Vector(1,0,0)))
     body = body.cut(screwHole.solid)
     screwHole = Polyhedron(Polygon(Vector(outerBody.w , lock.m+y, lock.u+z), screw_hole_diameter, Vector(1,0,0)), 
                            Polygon(Vector(outerBody.w + screw_hole_diameter, lock.m+y, lock.u+z), screw_hole_diameter, Vector(1,0,0)))
     body = body.cut(screwHole.solid)
 
 
-#draw_honey_glas(glas_radius, glas_height, lid_hight, Vector(innerClearance.c,innerClearance.s,innerClearance.g-lidClearance.h/2))
+draw_honey_glas(glas_radius, glas_height, lid_hight, Vector(innerClearance.c,innerClearance.s,innerClearance.g-lidClearance.h/2))
 
 ##########################################################################################
 # COIN BOX
@@ -217,7 +216,7 @@ coinBoxInnerClearance = Box(coinBox.vWSD + Vector(wall_thikness, wall_thikness, 
 coinBoxBody = coinBoxBody.cut(coinBoxInnerClearance.solid)
 
 coinBoxLid = Box(coinBoxInnerClearance.vWSU + clearance['loose']/2 + Vector(0, 0, -lidThickness), 
-                 coinBoxInnerClearance.vENU - clearance['loose']/2, [Vector(15,15,0)])
+                 coinBoxInnerClearance.vENU - clearance['loose']/2 + Vector(0,0,clearance['loose'].z/2), [Vector(15,15,0)])
 coinBoxLidBody = coinBoxLid.solid
 #coinBoxLidBody = coinBoxLidBody.makeFillet(2, coinBoxLidBody.Edges)
 
@@ -231,7 +230,7 @@ coinBoxLidBody = coinBoxLid.solid
 
 # coin acceptor
 ca_dim = Vector(40, 110, 120)
-ca_offset = Vector(40, 0, 0)
+ca_offset = Vector(30, 0, 0)
 ca_pos = Vector(coinBoxLid.c, coinBoxLid.m, coinBoxLid.u) + ca_offset
 ca = Box(Vector(-ca_dim.x/2, -ca_dim.y/2, 0) + ca_pos,
          Vector(ca_dim.x/2, ca_dim.y/2, -ca_dim.z) + ca_pos)
@@ -320,9 +319,6 @@ relais = Box(Vector(-relais_dim.x/2, -relais_dim.y/2, relais_dim.z) + relais_pos
           Vector(relais_dim.x/2, relais_dim.y/2, 0) + relais_pos)
 relaisBody = relais.solid
 
-honigText = SolidText("Honig 7€", Vector(pcbDisplayClearance.w-22.5, coinBoxLid.n - 25, coinBoxLid.u))
-coinBoxLidBody = coinBoxLidBody.cut(honigText.solid)
-
 
 screw_hole_diameter = 4.5
 screw_hole_depth = 15
@@ -402,7 +398,7 @@ coinPocketBoxInnerClearance = Box(coinPocketBox.vWSD + Vector(wall_thikness, wal
 coinPocketBoxBody = coinPocketBoxBody.cut(coinPocketBoxInnerClearance.solid)
 
 coinPocketBoxLid = Box(coinPocketBoxInnerClearance.vWSD + clearance['loose']/2, 
-                       coinPocketBoxInnerClearance.vENU - clearance['loose']/2, 
+                       coinPocketBoxInnerClearance.vENU - clearance['loose']/2 + Vector(0,0,clearance['loose'].z/2), 
                        [Vector(15,15,0)])
 
 coinPocketBoxLidClearance = Box(coinPocketBoxInnerClearance.vWSD + Vector(wall_thikness, wall_thikness, wall_thikness), 
@@ -411,6 +407,12 @@ coinPocketBoxLidClearance = Box(coinPocketBoxInnerClearance.vWSD + Vector(wall_t
 
 coinPocketBoxLidBody = coinPocketBoxLid.solid.cut(coinPocketBoxLidClearance.solid)
 
+# honigtext
+honigText = SolidText("Honig 7€", 
+                      Vector(coinPocketBoxLid.c-65, coinPocketBoxLid.m-10, coinPocketBoxLid.u), 
+                      txt_height=10, 
+                      height=-1)
+coinPocketBoxLidBody = coinPocketBoxLidBody.cut(honigText.solid)
 # 
 
 # coin box mounting holes
