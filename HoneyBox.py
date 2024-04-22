@@ -124,15 +124,22 @@ lidBody = lidBody.cut(hookClearanceBody)
 
 hinge_diameter_body = 4.1
 hinge_distance = 20
-hingeHole = Polyhedron(Polygon(Vector(lid.e-hinge_distance, -boxWidth, lid.g), hinge_diameter_body/2, Vector(0,1,0)), 
+hingeHole1 = Polyhedron(Polygon(Vector(lid.e-hinge_distance, -boxWidth, lid.g), hinge_diameter_body/2, Vector(0,1,0)), 
                        Polygon(Vector(lid.e-hinge_distance, boxWidth, lid.g), hinge_diameter_body/2, Vector(0,1,0))
                    )
 hinge_diameter_lid = 4.5
-hingeHoleLid = Polyhedron(Polygon(Vector(lid.e-hinge_distance, -boxWidth, lid.g), hinge_diameter_lid/2, Vector(0,1,0)), 
-                       Polygon(Vector(lid.e-hinge_distance, boxWidth, lid.g), hinge_diameter_lid/2, Vector(0,1,0))
+hingeHoleLid1 = Polyhedron(Polygon(Vector(lid.e-hinge_distance, -boxWidth/2, lid.g), hinge_diameter_lid/2, Vector(0,1,0)), 
+                       Polygon(Vector(lid.e-hinge_distance, -boxWidth/2+31, lid.g), hinge_diameter_lid/2, Vector(0,1,0))
                    )
-body = body.cut(hingeHole.solid)
-lidBody = lidBody.cut(hingeHoleLid.solid)
+hingeHoleLid2 = Polyhedron(Polygon(Vector(lid.e-hinge_distance, boxWidth/2-31, lid.g), hinge_diameter_lid/2, Vector(0,1,0)), 
+                       Polygon(Vector(lid.e-hinge_distance, boxWidth/2, lid.g), hinge_diameter_lid/2, Vector(0,1,0))
+                   )
+# show(hingeHoleLid1, name="hingeHoleLid1")
+# show(hingeHoleLid2, name="hingeHoleLid2")
+
+body = body.cut(hingeHole1.solid)
+lidBody = lidBody.cut(hingeHoleLid1.solid)
+lidBody = lidBody.cut(hingeHoleLid2.solid)
 
 
 # lock
@@ -143,6 +150,7 @@ lock_distance = 6.5
 z_offset = hook_plate.d - lock_distance
 
 lock_clearance_west = hook_plate.c - lock_depth/2
+print(f"lock_clearance_west={lock_clearance_west}", outerBody.w)
 lock_clearance_east = innerClearance.w - 2
 lockClearance = Box(Vector(lock_clearance_west, -lock_height/2 - clearance['loose'].y, outerBody.d), 
                     Vector(lock_clearance_east,  lock_height/2 + clearance['loose'].y, lidClearance.u))
@@ -152,12 +160,12 @@ lock = Box(Vector(-lock_depth/2 +x_offset, -lock_height/2 , z_offset - lock_widt
            Vector(lock_depth/2+x_offset, lock_height/2 , z_offset), [Vector(2,2,2)])
 
 # add lock cable clearance
-cableClearanceWidth = 5
-cableClearanceHorizontal = Box(Vector(outerBody.w, -cableClearanceWidth/2 , 0), 
-                    Vector( lockClearance.w, cableClearanceWidth/2 , cableClearanceWidth))
-cableClearanceVertical = Box(Vector(lockClearance.c-cableClearanceWidth/2, outerBody.n , 0), 
-                             Vector( lockClearance.c+cableClearanceWidth/2, outerBody.s , cableClearanceWidth))
-body = body.cut(lockClearance.solid).cut(cableClearanceHorizontal.solid).cut(cableClearanceVertical.solid)
+# cableClearanceWidth = 8
+# cableClearanceHorizontal = Box(Vector(outerBody.w, -cableClearanceWidth/2 , 0), 
+#                                Vector(outerBody.e, cableClearanceWidth/2 , cableClearanceWidth))
+# cableClearanceVertical = Box(Vector(lockClearance.c-cableClearanceWidth/2, outerBody.n , 0), 
+#                              Vector( lockClearance.c+cableClearanceWidth/2, outerBody.s , cableClearanceWidth))
+body = body.cut(lockClearance.solid)#.cut(cableClearanceHorizontal.solid).cut(cableClearanceVertical.solid)
 
 
 # rivet hole in hook and lid
@@ -188,6 +196,10 @@ for y, z in [(36.5/2, -6.5), (-36.5/2, -6.5), (0, -36-6.5)]:
 
 
 #draw_honey_glas(glas_radius, glas_height, lid_hight, Vector(innerClearance.c,innerClearance.s,innerClearance.g-lidClearance.h/2))
+
+##########################################################################################
+# COIN BOX
+##########################################################################################
 
 # draw coin box body
 offset = Vector(-boxLength, 0, 0)
@@ -253,7 +265,7 @@ coinBoxLidBody = coinBoxLidBody.makeFillet(lidThickness-3, [ coinBoxLidBody.Edge
 # cap holes
 # 61 mm x 112 mm symetrix to center
 cap_holes_dim = Vector(51, 102, 0)
-cap_holes_diameter = 4.5
+cap_holes_diameter = 5
 for pos in [Vector(cap.c + cap_holes_dim.x/2, cap.m + cap_holes_dim.y/2, cap.u),
             Vector(cap.c + cap_holes_dim.x/2, cap.m - cap_holes_dim.y/2, cap.u),
             Vector(cap.c - cap_holes_dim.x/2, cap.m + cap_holes_dim.y/2, cap.u),
@@ -267,7 +279,7 @@ for pos in [Vector(cap.c + cap_holes_dim.x/2, cap.m + cap_holes_dim.y/2, cap.u),
 # pcb holes
 # 61 mm x 112 mm symetrix to center
 pcb_holes_dim = Vector(54, 25, 0)
-pcb_holes_diameter = 2.5
+pcb_holes_diameter = 2.75
 for pos in [Vector(pcb.c + pcb_holes_dim.x/2, pcb.m + pcb_holes_dim.y/2, pcb.u),
             Vector(pcb.c + pcb_holes_dim.x/2, pcb.m - pcb_holes_dim.y/2, pcb.u),
             Vector(pcb.c - pcb_holes_dim.x/2, pcb.m + pcb_holes_dim.y/2, pcb.u),
@@ -278,7 +290,7 @@ for pos in [Vector(pcb.c + pcb_holes_dim.x/2, pcb.m + pcb_holes_dim.y/2, pcb.u),
     pcbBody = pcbBody.cut(pcb_holes.solid)
     coinBoxLidBody = coinBoxLidBody.cut(pcb_holes.solid)
 # encoder hole
-encoder_holes_diameter = 7.2
+encoder_holes_diameter = 7.7
 encoder_pos = Vector(pcbDisplayClearance.c, (pcbDisplayClearance.m + coinBoxLid.s)/2, coinBoxLid.u)
 
 #encoder_box = Box(Vector(-15, 15 ,  -7) + encoder_pos,
@@ -286,7 +298,7 @@ encoder_pos = Vector(pcbDisplayClearance.c, (pcbDisplayClearance.m + coinBoxLid.
 
 encoder_hole_screw = Polyhedron(Polygon(Vector(0, 0, 0) + encoder_pos, encoder_holes_diameter/2, Vector(0,0,1)), 
                            Polygon(Vector(0, 0, -coinBoxLid.h)+encoder_pos, encoder_holes_diameter/2, Vector(0,0,1)))
-encoder_holes_diameter_nut = 16
+encoder_holes_diameter_nut = 17
 encoder_hole_nut = Polyhedron(Polygon(Vector(0, 0, 0) + encoder_pos, encoder_holes_diameter_nut/2, Vector(0,0,1)), 
                               Polygon(Vector(0, 0, -coinBoxLid.h+5)+encoder_pos, encoder_holes_diameter_nut/2, Vector(0,0,1)))
 encoder_holes_diameter_notch = 3
@@ -341,6 +353,22 @@ for x in [coinBox.b/2 - hinge_distance, -coinBox.b/2 + hinge_distance]:
     nut = Nut(f"M4_{x}", "M4", Vector(coinBoxLid.c +x, coinBoxLid.n - 5 - NUT_MAP["M4"]["H"], coinBoxLid.g-1), Vector(0,1,0))
     coinBoxLidBody = coinBoxLidBody.cut(nut.head_clearance.solid).cut(nut.slide_clearance.solid)
 
+# coin box mounting holes
+for pos in [Vector(coinBoxInnerClearance.w+wall_thikness*3, coinBoxInnerClearance.n-wall_thikness*3, 0), 
+            Vector(coinBoxInnerClearance.w+wall_thikness*3, coinBoxInnerClearance.s+wall_thikness*3, 0), 
+            Vector(coinBoxInnerClearance.e-wall_thikness*3, coinBoxInnerClearance.n-wall_thikness*3, 0), 
+            Vector(coinBoxInnerClearance.e-wall_thikness*3, coinBoxInnerClearance.s+wall_thikness*3, 0)]:
+    moutingHole = Polyhedron(Polygon(Vector(0, 0, 0) + pos, moutingHole_diameter/2, Vector(0,0,1)), 
+                            Polygon(Vector(0, 0, wall_thikness)+pos, moutingHole_diameter/2, Vector(0,0,1))
+                    )
+    coinBoxBody = coinBoxBody.cut(moutingHole.solid)
+
+pos = Vector(coinBoxInnerClearance.c, coinBoxInnerClearance.m, 0)
+cableHoleDiameter = 20
+cableHole = Polyhedron(Polygon(Vector(0, 0, 0) + pos, cableHoleDiameter/2, Vector(0,0,1)), 
+                            Polygon(Vector(0, 0, wall_thikness)+pos, cableHoleDiameter/2, Vector(0,0,1))
+                    )
+coinBoxBody = coinBoxBody.cut(cableHole.solid)
 #txtFeature = Part.show(honigText.solid, 'HonigText')
 
 # nice pattern
@@ -354,9 +382,58 @@ for x in [coinBox.b/2 - hinge_distance, -coinBox.b/2 + hinge_distance]:
 #         nut = Nut(f"pattern {x} {y}", "M5", Vector(lid.c +x, lid.m +y, lid.u-1))
 #         lidBody = lidBody.cut(nut.head_clearance.solid)
 
+##########################################################################################
+# COIN POCKET 
+##########################################################################################
 
-# cut out coin aceptor body 
-coinBoxLidBody = coinBoxLidBody.cut(caBody)
+# draw coin box body
+offset = Vector(-boxLength, -boxWidth, 0)
+coinPocketBox = Box(Vector(-boxLength/2, -boxWidth/2, 0) + offset, 
+              Vector(boxLength/2, boxWidth/2, boxHight) + offset,
+              [Vector(15,15,0)]
+              )
+coinPocketBoxBody = coinPocketBox.solid
+
+# inner clearance
+coinPocketBoxInnerClearance = Box(coinPocketBox.vWSD + Vector(wall_thikness, wall_thikness, wall_thikness), 
+                            coinPocketBox.vENU + Vector(-wall_thikness, -wall_thikness, 0),
+                            [Vector(15,15,0)]
+                            )
+coinPocketBoxBody = coinPocketBoxBody.cut(coinPocketBoxInnerClearance.solid)
+
+coinPocketBoxLid = Box(coinPocketBoxInnerClearance.vWSD + clearance['loose']/2, 
+                       coinPocketBoxInnerClearance.vENU - clearance['loose']/2, 
+                       [Vector(15,15,0)])
+
+coinPocketBoxLidClearance = Box(coinPocketBoxInnerClearance.vWSD + Vector(wall_thikness, wall_thikness, wall_thikness), 
+                                coinPocketBoxInnerClearance.vENU + Vector(-wall_thikness, wall_thikness, -wall_thikness), 
+                                [Vector(15,15,0)])
+
+coinPocketBoxLidBody = coinPocketBoxLid.solid.cut(coinPocketBoxLidClearance.solid)
+
+# 
+
+# coin box mounting holes
+for pos in [Vector(coinPocketBoxInnerClearance.w+wall_thikness*3, coinPocketBoxInnerClearance.n-wall_thikness*3, 0), 
+            Vector(coinPocketBoxInnerClearance.w+wall_thikness*3, coinPocketBoxInnerClearance.s+wall_thikness*3, 0), 
+            Vector(coinPocketBoxInnerClearance.e-wall_thikness*3, coinPocketBoxInnerClearance.n-wall_thikness*3, 0), 
+            Vector(coinPocketBoxInnerClearance.e-wall_thikness*3, coinPocketBoxInnerClearance.s+wall_thikness*3, 0)]:
+    moutingHole = Polyhedron(Polygon(Vector(0, 0, 0) + pos, moutingHole_diameter/2, Vector(0,0,1)), 
+                            Polygon(Vector(0, 0, wall_thikness)+pos, moutingHole_diameter/2, Vector(0,0,1))
+                    )
+    coinPocketBoxBody = coinPocketBoxBody.cut(moutingHole.solid)
+
+
+
+bodyFeature = Part.show(coinPocketBoxBody, 'coinPocketBoxBody')
+bodyFeature.ViewObject.Transparency = 50
+bodyFeature.ViewObject.ShapeColor = brown
+
+bodyFeature = Part.show(coinPocketBoxLidBody, 'coinPocketBoxLidBody')
+bodyFeature.ViewObject.Transparency = 50
+bodyFeature.ViewObject.ShapeColor = yellow
+
+##########################################################################################
 
 bodyFeature = Part.show(coinBoxBody, 'CoinBoxBody')
 bodyFeature.ViewObject.Transparency = 50
@@ -409,10 +486,10 @@ bodyFeature.ViewObject.Transparency = 50
 bodyFeature.ViewObject.ShapeColor = (0.50,0.40,0.80)
 
 """ Fehler in v1.0:
-1. M4 side slide zu klein -> probedruck
-2. Encoder loch zu klein -> 0.5 mm größer
-3. PCB holes zu klein -> 0.5 mm größer
-4. CAP holes zu klein -> 0.5 mm größer
+1. M4 side slide zu klein -> probedruck mit tol update -> ??
+2. Encoder loch zu klein -> 0.5 mm größer -> done
+3. PCB holes zu klein -> 0.25 mm größer -> done
+4. CAP holes zu klein -> 0.5 mm größer -> done
 
 """
 
@@ -420,7 +497,7 @@ bodyFeature.ViewObject.ShapeColor = (0.50,0.40,0.80)
 # export 
 import Mesh
 
-for obj in ["HoneyBoxBody", "HoneyBoxLid", "CoinBoxBody", "CoinBoxLid", "m4_side_slide"]:
+for obj in ["HoneyBoxBody", "HoneyBoxLid", "CoinBoxBody", "CoinBoxLid"]:
     Mesh.export([FreeCAD.getDocument("HoneyBox").getObject(obj)], 
                 f"/Users/Markus/Documents/Projekte/FreeCAD/stl/{obj}.stl")
 
