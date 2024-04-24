@@ -267,7 +267,7 @@ cap = Box(Vector(-cap_dim.x/2, -cap_dim.y/2, 0) + ca_pos,
 capBody = cap.solid
 
 pcb_dim = Vector(60, 31, 2)
-pcb_offset = Vector(-30, 20, 0)
+pcb_offset = Vector(-25, 20, 0)
 pcb_pos = Vector(coinBoxLid.c, coinBoxLid.m, coinBoxLid.d) + pcb_offset
 pcb = Box(Vector(-pcb_dim.x/2, -pcb_dim.y/2, -pcb_dim.z) + pcb_pos,
           Vector(pcb_dim.x/2, pcb_dim.y/2, 0) + pcb_pos)
@@ -374,6 +374,16 @@ for x in [coinBox.b/2 - hinge_distance, -coinBox.b/2 + hinge_distance]:
     nut = Nut(f"M4_{x}", "M4", Vector(coinBoxLid.c +x, coinBoxLid.n - 5 - NUT_MAP["M4"]["H"], coinBoxLid.g-1), Vector(0,1,0))
     coinBoxLidBody = coinBoxLidBody.cut(nut.head_clearance.solid).cut(nut.slide_clearance.solid)
 
+kein = SolidText("      kein", 
+                      pcbDisplay_pos+Vector(-30, +35, +10), 
+                      txt_height=3, 
+                      height=-1)
+coinBoxLidBody = coinBoxLidBody.cut(kein.solid)
+wechselgeld = SolidText("Wechselgeld", 
+                      pcbDisplay_pos+Vector(-30, +25, +10), 
+                      txt_height=3, 
+                      height=-1)
+coinBoxLidBody = coinBoxLidBody.cut(wechselgeld.solid)
 # coin box mounting holes
 for pos in [Vector(coinBoxInnerClearance.w+wall_thikness*3, coinBoxInnerClearance.n-wall_thikness*3, 0), 
             Vector(coinBoxInnerClearance.w+wall_thikness*3, coinBoxInnerClearance.s+wall_thikness*3, 0), 
@@ -494,9 +504,9 @@ bodyFeature.ViewObject.ShapeColor = yellow
 # bodyFeature.ViewObject.Transparency = 50
 # bodyFeature.ViewObject.ShapeColor = (1,1,1)
 
-# bodyFeature = Part.show(capBody, 'CoinAcceptorPlate')
-# bodyFeature.ViewObject.Transparency = 50
-# bodyFeature.ViewObject.ShapeColor = (0xc0/255,0xc0/255,0xc0/255)
+bodyFeature = Part.show(capBody, 'CoinAcceptorPlate')
+bodyFeature.ViewObject.Transparency = 50
+bodyFeature.ViewObject.ShapeColor = (0xc0/255,0xc0/255,0xc0/255)
 
 # bodyFeature = Part.show(pcbBody, 'CoinBoxPcb')
 # bodyFeature.ViewObject.Transparency = 50
