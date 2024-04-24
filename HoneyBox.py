@@ -96,13 +96,27 @@ lid = Box(Vector(-lidWidth/2 , -lidHeight/2 , innerClearance.u - lidThickness) +
 lidBody = lid.solid
 #lidBody = lidBody.makeFillet(2, lidBody.Edges)
 
-lidHoleHeight = lidHeight - 20
-lidHoleWidth = 5
-for x in range(-40, 60, 20):
-    lidHole = Box(Vector(-lidHoleWidth/2 + x, -lidHoleHeight/2, lid.d ), 
-                  Vector(lidHoleWidth/2 + x, lidHoleHeight/2 , lid.u), [Vector(2,2,0)])
-    lidBody = lidBody.cut(lidHole.solid)
-
+if True:
+    lidHoleHeight = lidHeight - 20
+    lidHoleWidth = 5
+    for x in range(-40, 60, 20):
+        lidHole = Box(Vector(-lidHoleWidth/2 + x, -lidHoleHeight/2, lid.d ), 
+                    Vector(lidHoleWidth/2 + x, lidHoleHeight/2 , lid.u), [Vector(2,2,0)])
+        lidBody = lidBody.cut(lidHole.solid)
+else:
+    diameter = 5.4
+    step = 6
+    y = 0
+    up = Vector(lid.c, lid.m, lid.u)
+    dn = Vector(lid.c, lid.m, lid.d)
+    for y in range(0, 20, step):
+        for x in range(0, 20, step):
+            y_off = y + step/2 + 0.2 if (x / step) % 2 else y
+            offset = Vector(x, y_off)
+            lidHole = Polyhedron(Polygon(up + offset, diameter/2, Vector(0,0,1), sides=6), 
+                                Polygon(dn + offset, diameter/2, Vector(0,0,1), sides=6)
+                                )
+            lidBody = lidBody.cut(lidHole.solid)
 # adding lid hook
 hook_width = 20.5
 hook_hight = 36
@@ -521,13 +535,28 @@ bodyFeature.ViewObject.ShapeColor = yellow
 
 """
 
+names = ["HoneyBoxBody", 
+         #"HoneyBoxLid", 
+         "CoinBoxBody", 
+         "CoinBoxLid",
+         "coinPocketBoxBody", 
+         "coinPocketBoxLidBody"]
+for var in ["A", "B", "C", "D", "E", "F"]:
+    txt = SolidText(var, position=Vector(lidClearance.w+6, lidClearance.n-33, lid.u), height=-1, txt_height=10)
+    txt.solid = lidBody.cut(txt.solid)
+    name = f"HoneyBoxLid_{var}"
+    names.append(name)
+    show(txt, color=brown, name=name)
+
+
 
 # export 
 import Mesh
 
-for obj in ["HoneyBoxBody", "HoneyBoxLid", "CoinBoxBody", "CoinBoxLid", "coinPocketBoxBody", "coinPocketBoxLidBody"]:
-    Mesh.export([FreeCAD.getDocument("HoneyBox").getObject(obj)], 
-                f"/Users/Markus/Documents/Projekte/FreeCAD/stl/{obj}.stl")
+for name in names:
+    print("export", name)
+    Mesh.export([FreeCAD.getDocument("HoneyBox").getObject(name)], 
+                f"/Users/Markus/Documents/Projekte/FreeCAD/stl/{name}.stl")
 
 # show part
 FreeCAD.Gui.activeDocument().activeView().viewIsometric()
