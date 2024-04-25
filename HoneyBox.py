@@ -425,8 +425,8 @@ coinPocketBoxInnerClearance = Box(coinPocketBox.vWSD + Vector(wall_thikness, wal
                             )
 coinPocketBoxBody = coinPocketBoxBody.cut(coinPocketBoxInnerClearance.solid)
 
-coinPocketBoxLid = Box(coinPocketBoxInnerClearance.vWSD + clearance['loose']/2, 
-                       coinPocketBoxInnerClearance.vENU - clearance['loose']/2 + Vector(0,0,clearance['loose'].z/2), 
+coinPocketBoxLid = Box(coinPocketBoxInnerClearance.vWSD + clearance['loose'] + Vector(0,0,clearance['very_loose'].z), 
+                       coinPocketBoxInnerClearance.vENU - clearance['loose'] + Vector(0,0,clearance['loose'].z), 
                        [Vector(15,15,0)])
 
 coinPocketBoxLidClearance = Box(coinPocketBoxInnerClearance.vWSD + Vector(wall_thikness, wall_thikness, wall_thikness), 
