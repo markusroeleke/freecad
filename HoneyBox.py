@@ -91,10 +91,9 @@ body = body.cut(lidClearance.solid)
 
 
 # honey box lid
-lid = Box(Vector(-lidWidth/2 , -lidHeight/2 , innerClearance.u - lidThickness) + clearance['loose']/2, 
-          Vector(lidWidth/2, lidHeight/2, innerClearance.u+clearance['loose'].z/2) - clearance['loose']/2, [Vector(15,15,0)])
+lid = Box(Vector(-lidWidth/2 , -lidHeight/2 , innerClearance.u - lidThickness-clearance['loose'].z) + clearance['loose'], 
+          Vector(lidWidth/2, lidHeight/2, innerClearance.u+clearance['loose'].z) - clearance['loose'], [Vector(15,15,0)])
 lidBody = lid.solid
-#lidBody = lidBody.makeFillet(2, lidBody.Edges)
 
 if True:
     lidHoleHeight = lidHeight - 20
@@ -347,7 +346,7 @@ relaisBody = relais.solid
 
 screw_hole_diameter = 4.5
 screw_hole_depth = 15
-for x in [coinBox.b/2 - hinge_distance, -coinBox.b/2 + hinge_distance]:
+for x in [coinBoxLid.b/2 - hinge_distance, -coinBoxLid.b/2 + hinge_distance]:
     # screw
     screwHole1 = Polyhedron(Polygon(Vector(coinBox.c +x, coinBoxLid.s + screw_hole_depth , coinBoxLid.g -1), screw_hole_diameter/2, Vector(0,1,0)), 
                             Polygon(Vector(coinBox.c +x, coinBox.s, coinBoxLid.g-1), screw_hole_diameter/2, Vector(0,1,0)))
@@ -442,7 +441,11 @@ lockHole = Polyhedron(Polygon(Vector(0, y_offset, 0) + pos, 18/2, Vector(0,0,1))
                       Polygon(Vector(0, y_offset, -wall_thikness)+pos, 18/2, Vector(0,0,1))
                 )
 coinPocketBoxLidBody = coinPocketBoxLidBody.cut(lockHole.solid)
+lockNotch = Box(Vector(coinPocketBoxLid.c-20, coinPocketBoxLid.m-y_offset/2, coinPocketBoxLid.u),
+                Vector(coinPocketBoxLid.c+20,  coinPocketBoxLid.n+y_offset-7.5, coinPocketBoxLid.u-wall_thikness))
 
+coinPocketBoxLidBody = coinPocketBoxLidBody.fuse(lockNotch.solid)
+#show(lockNotch)
 z_offset = -16.3
 lockLever = Polyhedron(Polygon(Vector(0, y_offset, z_offset) + pos, 42, Vector(0,0,1)), 
                       Polygon(Vector(0, y_offset, -4+z_offset)+pos, 42, Vector(0,0,1))
@@ -544,6 +547,8 @@ bodyFeature.ViewObject.ShapeColor = yellow
 4. CAP holes zu klein -> 0.5 mm größer -> done
 
 """
+
+#lidBody = lidBody.makeChamfer(1, [lidBody.Edge69])
 
 names = ["HoneyBoxBody", 
          #"HoneyBoxLid", 
