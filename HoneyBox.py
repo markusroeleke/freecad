@@ -457,6 +457,12 @@ honigText = SolidText("Honig 7€",
                       txt_height=10, 
                       height=-1)
 coinPocketBoxLidBody = coinPocketBoxLidBody.cut(honigText.solid)
+
+urlText = SolidText("bee-modern.de", 
+                      Vector(coinPocketBoxLid.c-65, coinPocketBoxLid.m+55, coinPocketBoxLid.u), 
+                      txt_height=5, 
+                      height=-1)
+coinPocketBoxLidBody = coinPocketBoxLidBody.cut(urlText.solid)
 # 
 
 # coin box mounting holes
