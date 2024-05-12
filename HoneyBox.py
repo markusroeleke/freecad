@@ -140,7 +140,7 @@ hookBody = hookBody.cut(hangerHole.solid)
 lock_width = 73
 lock_height = 58
 lock_depth = 13
-lock_distance = 6.5
+lock_distance = 8.0
 z_offset = hook_plate.d - lock_distance
 
 x_offset = hook_plate.c
