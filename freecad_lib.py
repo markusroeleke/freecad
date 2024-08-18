@@ -1,4 +1,4 @@
-import FreeCAD, Part, FreeCADGui
+import FreeCAD, Part, FreeCADGui, Mesh
 from FreeCAD import Vector
 from typing import List
 import functools
@@ -30,6 +30,8 @@ def show(part, transparancy=50, color=(0.5, 0.5, 0.5), name="body"):
 
     return bodyFeature
 
+def export(doc, obj):
+    Mesh.export([FreeCAD.getDocument(doc).getObject(obj)], f"/Users/Markus/Documents/Projekte/FreeCAD/stl/{obj}.stl")
 
 ############################################################################################################
 # DIN / ISO size konstants
