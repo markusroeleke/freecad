@@ -78,11 +78,7 @@ main_body.solid = main_body.solid.makeFillet(1.5, [ main_body.solid.Edge9, main_
 # Optional: Ausgabe, um die Boxen anzusehen (Placeholder, hängt von der verwendeten 3D-Bibliothek ab)
 #print("Final Holder:", final_holder)
 
-show(main_body, name="Tragschienenhalter", color=(111,123,0))
-#show(ts35_body, name="ts35_body", color=(0,123,0))
-#show(ts35_groove, name="ts35_groove", color=(0,0, 123))
 
-export('Elektrokasten', "Tragschienenhalter")
 
 RC_BOX_HIGHT = 60.5 # X
 RC_BOX_WIDTH = 43.5 # y
@@ -107,11 +103,13 @@ rc_box_body = Box(
    # [Vector(1,1,1)]
 )
 
-rc_box_holder_body.solid = rc_box_holder_body.solid.cut(rc_box_body.solid)
+
 
 RC_BOX_SLIP_HIGHT = 10 # X
-RC_BOX_SLIP_HOLE = 46.5
+RC_BOX_SLIP_HOLE = 47
 RC_BOX_SLIP_WIDTH = 53 # y
+
+RC_BOX_BACK_WIDTH = 45 # y
 
 x_offset = rc_box_body.c
 y_offset = rc_box_body.s
@@ -120,7 +118,20 @@ rc_box_slip_body = Box(
     Vector(  x_offset+RC_BOX_SLIP_HIGHT/2, y_offset+RC_BOX_SLIP_WIDTH, rc_box_body.d),  # East, North, Up
     [Vector(2,2,2)]
 )
+rc_box_back_body = Box(
+    Vector(  x_offset-RC_BOX_HOLDER_HIGHT/2, y_offset, 0    ),  # West, South, Down
+    Vector(  x_offset+RC_BOX_HOLDER_HIGHT/2, y_offset+RC_BOX_BACK_WIDTH, rc_box_body.d+RC_BOX_HOLDER_THICKNESS*2),  # East, North, Up
+    [Vector(2,2,2)]
+)
+RC_BOX_NOTCH_HIGHT = 30
+rc_box_back_notch = Box(
+    Vector(  x_offset-RC_BOX_NOTCH_HIGHT/2, y_offset, rc_box_body.d    ),  # West, South, Down
+    Vector(  x_offset+RC_BOX_NOTCH_HIGHT/2, y_offset+RC_BOX_BACK_WIDTH, rc_box_body.d+RC_BOX_HOLDER_THICKNESS*2),  # East, North, Up
+)
 
+rc_box_holder_body.solid = rc_box_holder_body.solid.fuse(rc_box_back_body.solid)
+rc_box_holder_body.solid = rc_box_holder_body.solid.cut(rc_box_back_notch.solid)
+rc_box_holder_body.solid = rc_box_holder_body.solid.cut(rc_box_body.solid)
 rc_box_holder_body.solid = rc_box_holder_body.solid.fuse(rc_box_slip_body.solid)
 notch_diameter = 3.5
 notch = Polyhedron(Polygon(Vector(rc_box_slip_body.c, rc_box_slip_body.s+RC_BOX_SLIP_HOLE, rc_box_slip_body.u), notch_diameter/2, Vector(0,0,1)), 
@@ -129,13 +140,20 @@ notch = Polyhedron(Polygon(Vector(rc_box_slip_body.c, rc_box_slip_body.s+RC_BOX_
 rc_box_holder_body.solid = rc_box_holder_body.solid.fuse(notch.solid)
 
 # ecken abrunden
-rc_box_holder_body.solid = rc_box_holder_body.solid.makeFillet(1.5, [ rc_box_holder_body.solid.Edge58, rc_box_holder_body.solid.Edge50])
+rc_box_holder_body.solid = rc_box_holder_body.solid.makeFillet(1.5, 
+                                                               [ rc_box_holder_body.solid.Edge97, 
+                                                                rc_box_holder_body.solid.Edge108, 
+                                                                rc_box_holder_body.solid.Edge37])
 
-show(rc_box_holder_body, name="RC_Box_holder", color=(50,50,0))
+main_body.solid = main_body.solid.fuse(rc_box_holder_body.solid)
+#show(rc_box_holder_body, name="RC_Box_holder", color=(50,50,0))
 #show(rc_box_body, name="RC_Box_body", color=(0,50,0))
+show(main_body, name="Tragschienenhalter", color=(111,123,0))
+#show(ts35_body, name="ts35_body", color=(0,123,0))
+#show(ts35_groove, name="ts35_groove", color=(0,0, 123))
 
-
-export('Elektrokasten', "RC_Box_holder")
+export('Elektrokasten', "Tragschienenhalter")
+#export('Elektrokasten', "RC_Box_holder")
 # show part
 FreeCAD.Gui.activeDocument().activeView().viewIsometric()
 FreeCAD.Gui.SendMsgToActiveView("ViewFit")
