@@ -18,7 +18,7 @@ TS35_WIDTH_MAX = 35.5     # X: Max Breite der Schiene in mm
 TS35_WIDTH_MIN = 34.0   # X: Min Breite der Schiene in mm
 TS35_HEIGHT = 2.5       # Y: Höhe der Schiene in mm
 TS35_THICKNESS = 1.5    # Y: Höhe der Schiene in mm
-TS35_GROOVE_HIGHT = 6   # Y: Höhe feder aussparung
+TS35_GROOVE_HIGHT = 5   # Y: Höhe feder aussparung
 
 SCREW_DRIVER_WIDTH  = 5.0   # x: Min Breite der Schiene in mm
 SCREW_DRIVER_HEIGHT = 5.0 # y: Höhe der Schiene in mm
@@ -26,7 +26,7 @@ SCREW_DRIVER_HOLE_THINKNESS = 2.5
 
 HOLDER_LENGTH = 31       # Z: Länge des Halters
 
-HOLDER_HIGHT = 10       # y: Höhe des Halters
+HOLDER_HIGHT = 8        # y: Höhe des Halters
 HOLDER_WIDTH = 39       # x: Breite der Schiene in mm
 
 # 1. Hauptkörper der Halterung (zentrales Rechteck)
@@ -84,7 +84,7 @@ RC_BOX_HIGHT = 60.5 # X
 RC_BOX_WIDTH = 43.5 # y
 RC_BOX_LENGTH = 28.5 # y
 
-RC_BOX_HOLDER_THICKNESS = 1
+RC_BOX_HOLDER_THICKNESS = 0.75
 RC_BOX_HOLDER_HIGHT = RC_BOX_HIGHT + RC_BOX_HOLDER_THICKNESS*2 # X
 RC_BOX_HOLDER_WIDTH = 4 # Y
 RC_BOX_HOLDER_OVERHANG = 6
@@ -109,7 +109,7 @@ RC_BOX_SLIP_HIGHT = 10 # X
 RC_BOX_SLIP_HOLE = 47
 RC_BOX_SLIP_WIDTH = 53 # y
 
-RC_BOX_BACK_WIDTH = 45 # y
+RC_BOX_BACK_WIDTH = RC_BOX_WIDTH + RC_BOX_HOLDER_THICKNESS# y
 
 x_offset = rc_box_body.c
 y_offset = rc_box_body.s
