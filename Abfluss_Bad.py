@@ -10,15 +10,16 @@ from freecad_lib import SolidText
 new_doc('Dusche')
 
 # Parameter all in mm
-sieb_durchmesser = 85.5
-sieb_höhe = 1
+sieb_durchmesser = 86
+sieb_höhe = 2
 
 sieb = Cylinder("sieb", sieb_durchmesser, sieb_höhe)
 
 
-loch_durchmesser = 4
-for x_offset in range(-84, 84, loch_durchmesser*2):
-    for y_offset in range(-84, 84, loch_durchmesser*2):
+loch_durchmesser = 5
+start_offset = int(sieb_durchmesser)
+for x_offset in range(-start_offset, start_offset, loch_durchmesser*2):
+    for y_offset in range(-start_offset, start_offset, loch_durchmesser*2):
         
         distance = math.sqrt(x_offset**2 + y_offset**2)
         
