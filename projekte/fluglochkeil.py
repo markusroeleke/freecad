@@ -63,8 +63,14 @@ nut = Nut("M4_Mutter",
           "M4", 
           position=Vector(aussparung2.c ,aussparung2.m, 6),
           normal=Vector(0,0,-1))
-#show(screw, name="M4_Schraube")
+
+loch_durchmesser = 7.5
+loch = Polyhedron(Polygon(Vector(aussparung1.c ,aussparung1.m, aussparung1.g), loch_durchmesser/2, Vector(1,0,0)), 
+                  Polygon(Vector(keil.w ,aussparung1.m, aussparung1.g), loch_durchmesser/2, Vector(1,0,0))
+                    )
+#show(loch, name="loch")
 #show(nut, name="M4_Mutter")
+keil.solid = keil.solid.cut(loch.solid)
 keil.solid = keil.solid.cut(nut.solid)
 keil.solid = keil.solid.cut(screw.solid)
 
