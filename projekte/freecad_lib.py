@@ -244,17 +244,16 @@ class Flat:
             if not vertexB.isEqual(vertexC, 0):
                 edges.append(Part.LineSegment(vertexB, vertexC).toShape())
             vertexD = vertexC + (bc * (self.v[k] - vertexC))
-        # print(edges)
+        #print(edges)
         self.wire = Part.Wire(edges)
-        # print(self.wire)
+        #print(self.wire)
         self.face = Part.Face(self.wire)
         if self.normal.isEqual(Vector(0, 0, 0), 0):
             self.normal = self.face.normalAt(0, 0)
 
-
 # Vectors (v) : (x), (y), (2)
 class Box:
-    def __init__(self, vWSD, vENU, joints=[]):
+    def __init__(self, vWSD: Vector, vENU: Vector, joints=[]):
 
         self.vWSD = vWSD
         self.vENU = vENU
@@ -388,7 +387,12 @@ class Cylinder(Polyhedron):
 
 class Nut(Polyhedron):
     def __init__(
-        self, name, size: NUT_SIZES, position=Vector(0, 0, 0), normal=Vector(0, 0, 1)
+        self, 
+        name, 
+        size: NUT_SIZES, 
+        position=Vector(0, 0, 0), 
+        normal=Vector(0, 0, 1),
+        screw_type: Literal["normal", "slide"] = "normal",
     ):
         self.name = name
         self.position = position
@@ -399,9 +403,9 @@ class Nut(Polyhedron):
         self.nut_across_sides = NUT_MAP[size]["AF"]
         self.nut_radius = NUT_MAP[size]["AF"] / math.sqrt(3)
 
-        self.draw()
+        self.draw(screw_type)
 
-    def draw(self):
+    def draw(self, screw_type):
 
         polygon1 = Polygon(
             self.position,
@@ -423,62 +427,67 @@ class Nut(Polyhedron):
             self.nut_radius, "c"
         )
 
-        polygon1 = Polygon(
-            self.position,
-            clearance_radius,
-            self.normal,
-            sides=6,
-        )
-        polygon2 = Polygon(
-            self.position + clearance_height * self.normal,
-            clearance_radius,
-            self.normal,
-            sides=6,
-        )
-        self.clearance = Polyhedron(polygon1, polygon2)
-
-        # slide clearance
-
-        slide_clearance_width = self.nut_across_sides + tolerances.get_tolerance(
-            self.nut_across_sides, "c"
-        )
-        slide_clearance_height = self.nut_height + tolerances.get_tolerance(
-            self.nut_height, "v"
-        )
-
-        polygon1 = Polygon(
-            self.position,
-            clearance_radius,
-            self.normal,
-            sides=6,
-        )
-        polygon2 = Polygon(
-            self.position + slide_clearance_height * self.normal,
-            clearance_radius,
-            self.normal,
-            sides=6,
-        )
-        self.head_clearance = Polyhedron(polygon1, polygon2)
-
-        if self.normal == Vector(0, 0, 1):
-            vec1 = Vector(0, -slide_clearance_width / 2, 0)
-            vec2 = Vector(
-                clearance_height, slide_clearance_width / 2, slide_clearance_height
+        if screw_type == "normal":
+            polygon1 = Polygon(
+                self.position,
+                clearance_radius,
+                self.normal,
+                sides=6,
             )
-        elif self.normal == Vector(0, 1, 0):
-            vec1 = Vector(-slide_clearance_width / 2, 0, 0)
-            vec2 = Vector(
-                slide_clearance_width / 2, slide_clearance_height, -clearance_height
+            polygon2 = Polygon(
+                self.position + clearance_height * self.normal,
+                clearance_radius,
+                self.normal,
+                sides=6,
             )
-        elif self.normal == Vector(1, 0, 0):
-            vec1 = Vector(0, -slide_clearance_width / 2, 0)
-            vec2 = Vector(
-                slide_clearance_height, slide_clearance_width / 2, -clearance_height
+            self.clearance = Polyhedron(polygon1, polygon2)
+            self.solid = self.solid.fuse(self.clearance.solid)
+        elif screw_type == "slide":
+
+            # slide clearance
+
+            slide_clearance_width = self.nut_across_sides + tolerances.get_tolerance(
+                self.nut_across_sides, "c"
             )
-        self.slide_clearance = Box(
-            vec1 + self.position,
-            vec2 + self.position,
-        )
+            slide_clearance_height = self.nut_height + tolerances.get_tolerance(
+                self.nut_height, "v"
+            )
+
+            polygon1 = Polygon(
+                self.position,
+                clearance_radius,
+                self.normal,
+                sides=6,
+            )
+            polygon2 = Polygon(
+                self.position + slide_clearance_height * self.normal,
+                clearance_radius,
+                self.normal,
+                sides=6,
+            )
+            self.head_clearance = Polyhedron(polygon1, polygon2)
+            self.solid = self.solid.fuse(self.head_clearance.solid)
+
+            if self.normal == Vector(0, 0, 1):
+                vec1 = Vector(0, -slide_clearance_width / 2, 0)
+                vec2 = Vector(
+                    clearance_height, slide_clearance_width / 2, slide_clearance_height
+                )
+            elif self.normal == Vector(0, 1, 0):
+                vec1 = Vector(-slide_clearance_width / 2, 0, 0)
+                vec2 = Vector(
+                    slide_clearance_width / 2, slide_clearance_height, -clearance_height
+                )
+            elif self.normal == Vector(1, 0, 0):
+                vec1 = Vector(0, -slide_clearance_width / 2, 0)
+                vec2 = Vector(
+                    slide_clearance_height, slide_clearance_width / 2, -clearance_height
+                )
+            self.slide_clearance = Box(
+                vec1 + self.position,
+                vec2 + self.position,
+            )
+            self.solid = self.solid.fuse(self.slide_clearance.solid)
 
 
 class Screw(Polyhedron):
@@ -512,3 +521,29 @@ class Screw(Polyhedron):
         self.clearance_thread_diameter = (
             self.thread_diameter + tolerances.get_tolerance(self.thread_diameter, "v")
         )
+
+        polygon1 = Polygon(
+            self.position,
+            self.clearance_head_diameter/2,
+            self.normal
+        )
+        polygon2 = Polygon(
+            self.position + self.clearance_head_height * self.normal,
+            self.clearance_head_diameter/2,
+            self.normal
+        )
+        polygon3 = Polygon(
+            self.position + self.clearance_head_height * self.normal,
+            self.clearance_thread_diameter/2,
+            self.normal
+        )
+
+        polygon4 = Polygon(
+            self.position - self.clearance_thread_length * self.normal,
+            self.clearance_thread_diameter/2,
+            self.normal
+        )
+        self.head_clearance = Polyhedron(polygon1, polygon2)
+        self.thread_clearance = Polyhedron(polygon3, polygon4)
+
+        self.solid = self.head_clearance.solid.fuse(self.thread_clearance.solid)
