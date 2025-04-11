@@ -15,7 +15,7 @@ new_doc('Beute')
 
 # Parameter all in mm
 außen_breite = 160
-außen_höhe = 15
+außen_höhe = 20
 außen_tiefe = 80
 
 flugbrettchen = Box(Vector(-außen_breite/2, -außen_tiefe/2, 0),
@@ -23,8 +23,8 @@ flugbrettchen = Box(Vector(-außen_breite/2, -außen_tiefe/2, 0),
 flugbrettchen.solid = flugbrettchen.solid.makeChamfer(außen_höhe-2, außen_tiefe-5, [flugbrettchen.solid.Edge4])
 
 # unterlegscheibe
-u_durchmesser = 12
-u_dicke = 2
+u_durchmesser = 18
+u_dicke = 2.8
 u_distanz = 120
 offset1 = Vector(flugbrettchen.c-u_distanz/2, flugbrettchen.n-u_dicke, flugbrettchen.d)
 
