@@ -41,7 +41,7 @@ show(keil, name="keil_150mm")
 #show(screw, name="M4_Schraube")
 export('Beute', "keil_150mm")
 
-
+außen_tiefe = 230 + außen_höhe
 aussparung_tiefe = 30
 aussparung_höhe = 6
 
