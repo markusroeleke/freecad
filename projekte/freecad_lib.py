@@ -324,13 +324,12 @@ class Polyhedron:
 
 class SolidText:
     def __init__(
-        self, text, position=Vector(0, 0, 0), height=-1, txt_height=6, spacing=0.5
+        self, text, position=Vector(0, 0, 0), height=-1, txt_height=6, spacing=0.5, font="TC_LaserSans.TTF"
     ):
         self.position = position
         self.height = height
         self.txt_height = txt_height
         self.text = text
-        font = "tc_lasersans.ttf"
         fontdir = "/Users/Markus/Documents/Projekte/FreeCAD/fonts/"
         wire_lists = Part.makeWireString(text, fontdir, font, self.txt_height, spacing)
         self.faces = [Part.Face(wire) for wires in wire_lists for wire in wires]

@@ -23,12 +23,13 @@ Honigschild.solid = Honigschild.solid.makeFillet(2, Honigschild.solid.Edges)
 position = Vector(Honigschild.w+10, Honigschild.c+30, Honigschild.u)
 
 # Verkaufstext
-offset = Vector(0, -30, 0)
-txt_list = ["  Honig",
-            "vom Imker",]
+offset = Vector(0, -60, 0)
+txt_list = [" Honig 7€",
+            "  ------>",
+            ]
             #"bee-modern.de"]
 for n, txt in enumerate(txt_list):
-    text = SolidText(txt, position=position+offset*n, height=-height, txt_height=10)
+    text = SolidText(txt, position=position+offset*n, height=-height, txt_height=15)
     Honigschild.solid = Honigschild.solid.cut(text.solid)
 
 
