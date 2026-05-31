@@ -7,8 +7,8 @@ doc_name = 'HoneyBox'
 FreeCAD.newDocument(doc_name)
 FreeCAD.Gui.runCommand('Std_DrawStyle',6) #shaded wireframe
 
-from freecad_lib import *
-from freecad_lib import SolidText
+from src.freecad_lib import *
+from src.freecad_lib import SolidText
 
 clearance = {"very_loose":  Vector(1.5, 1.5, 1.5),
              "loose":       Vector(1, 1, 1),
