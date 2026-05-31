@@ -200,6 +200,21 @@ egg = Ellipsoid(rx=15, ry=15, rz=25, position=Vector(0, 0, 0))
 egg.solid
 ```
 
+#### **Capsule** - Cylinder with hemispherical caps on both ends (pill shape)
+```python
+# height must be >= diameter; cylindrical section = height - diameter
+capsule = Capsule("pill", diameter=10, height=30, position=Vector(0, 0, 0), normal=Vector(0, 0, 1))
+capsule.solid
+```
+
+#### **Slot** - Elongated hole / oblong (rounded rectangle extruded)
+```python
+# Centered at position, elongated along direction, extruded depth along normal
+slot = Slot("slot", length=20, width=6, depth=10,
+            position=Vector(0, 0, 0), normal=Vector(0, 0, 1), direction=Vector(1, 0, 0))
+body = body.cut(slot.solid)
+```
+
 ### 4. Hardware Components (DIN/ISO Standard)
 
 #### **Nut** - Hexagonal nut with clearance
@@ -243,7 +258,101 @@ text = SolidText(
 )
 ```
 
-### 5. Boolean Operations
+### 5. 3D-Print Specific Features
+
+#### **CountersinkHole** - Cone entry for flat-head (DIN 7991) screws
+```python
+# Look up standard dimensions from COUNTERSINK_MAP:
+# COUNTERSINK_MAP["M3"] = {"dK": 5.6, "d": 3.4, "k": 1.7}
+cs = CountersinkHole(
+    name="cs_m3",
+    hole_diameter=COUNTERSINK_MAP["M3"]["d"],     # 3.4 mm clearance hole
+    countersink_diameter=COUNTERSINK_MAP["M3"]["dK"],  # 5.6 mm head cone
+    depth=10,                                     # through-hole depth below cone
+    position=Vector(0, 0, 10),
+    normal=Vector(0, 0, -1),   # going down into the part
+)
+body = body.cut(cs.solid)
+
+# Custom angle (default 45° half-angle = 90° included):
+cs = CountersinkHole("cs", 3.4, 6.0, 8, angle=45)
+```
+
+#### **CounterboreHole** - Flat-bottomed recess for socket-head cap screws
+```python
+# M5 ISO 4762 socket head: dK=8.5mm, k(head height)=4mm
+cb = CounterboreHole(
+    name="cb_m5",
+    hole_diameter=5.5,    # thread clearance hole
+    bore_diameter=9.0,    # head diameter + clearance
+    bore_depth=5.0,       # head height + clearance
+    total_depth=20,
+    position=Vector(0, 0, 0),
+)
+body = body.cut(cb.solid)
+```
+
+#### **NutTrap** - Blind hex pocket to capture a DIN nut
+```python
+# Very common in 3D printing: pocket in the side of a part traps a standard nut
+trap = NutTrap("trap_m3", "M3", position=Vector(0, 0, 5), normal=Vector(0, 1, 0))
+body = body.cut(trap.solid)
+
+# extra_depth=1.0: adds 1mm buffer above nut (thin plastic membrane)
+trap = NutTrap("trap_m3", "M3", extra_depth=1.0)
+```
+
+#### **HeatSetInsert** - Pocket for heat-set threaded brass inserts
+```python
+# Ruthex / CNC Kitchen standard dimensions (HEAT_SET_INSERT_MAP)
+hs = HeatSetInsert("hs_m3", "M3", position=Vector(0, 0, 10), normal=Vector(0, 0, -1))
+body = body.cut(hs.solid)
+
+# Available: M2, M3, M4, M5
+# HEAT_SET_INSERT_MAP["M3"] = {"pocket_d": 4.7, "pocket_l": 6.0}
+```
+
+#### **BearingPocket** - Press-fit pocket for standard ball bearings
+```python
+# BEARING_MAP keys: "608", "624", "625", "626", "688", "6200", "6201", "6202", "6203", "6204"
+pocket = BearingPocket("bp608", "608", position=Vector(0, 0, 0), tolerance="f")
+body = body.cut(pocket.solid)
+
+# Add shaft hole separately:
+shaft = Cylinder("shaft", pocket.bore, 30, Vector(0, 0, 0))
+body = body.cut(shaft.solid)
+
+# Properties:
+pocket.bore            # = 8 mm (for 608)
+pocket.outer_diameter  # = 22 mm
+pocket.bearing_width   # = 7 mm (= pocket depth)
+```
+
+#### **MagnetPocket** - Blind recess for a neodymium disc magnet
+```python
+# MAGNET_SIZES keys: "5x1", "5x2", "6x2", "8x2", "10x2", "10x3", "12x2", "12x3", "20x3"
+mag = MagnetPocket("mag", "10x2", position=Vector(20, 0, 0), clearance=0.2)
+body = body.cut(mag.solid)
+```
+
+### 6. Boolean Operations
+
+```python
+# Union (add parts together)
+body = body.fuse(other_part.solid)
+
+# Subtraction (cut holes, remove volume)
+body = body.cut(hole.solid)
+
+# Intersection (keep only overlapping volume)
+body = body.common(overlap.solid)
+
+# Fuse a list of solids in one call
+body = fuse_all([part1, part2, part3])
+
+# Cut multiple shapes from a base in one call
+body = cut_all(base, [hole1, hole2, slot])
+```
 
 ```python
 # Union (add parts together)
@@ -312,33 +421,24 @@ body = body.cut(ring)
 
 ### 8. Visualization & Display
 
-#### **show()** - Display shape with transparency and color
+#### **show()** - Display a freecad_lib object
 ```python
 show(
-    part=body,
-    transparancy=50,  # 0-100 (0=opaque, 100=transparent)
+    part=box_obj,       # must be a freecad_lib object with .solid attribute
+    transparancy=50,    # 0-100 (0=opaque, 100=transparent)
     color=(0.5, 0.5, 0.5),  # RGB tuple (0-1 range)
     name="body"
 )
-
-# Common colors:
-# Red: (1, 0, 0)
-# Green: (0, 1, 0)
-# Blue: (0, 0, 1)
-# Yellow: (1, 1, 0)
-# Gray: (0.5, 0.5, 0.5)
-# Gold: (247/255, 197/255, 79/255)
 ```
 
-#### **Clearance Variables**
-Predefined clearance vectors for tolerance levels:
+#### **show_solid()** - Display a raw Part solid
 ```python
-clearance = {
-    "very_loose": Vector(1.5, 1.5, 1.5),
-    "loose": Vector(1, 1, 1),
-    "middle": Vector(0.6, 0.6, 0.6),
-    "tight": Vector(0.2, 0.2, 0.2)
-}
+# Use this after boolean operations (body.cut / body.fuse return a raw solid)
+show_solid(body, transparancy=0, color=(0.2, 0.6, 0.8), name="part")
+
+# Common colors:
+# Red: (1, 0, 0)   Green: (0, 1, 0)   Blue: (0, 0, 1)
+# Yellow: (1, 1, 0)   Gray: (0.5, 0.5, 0.5)   Gold: (247/255, 197/255, 79/255)
 ```
 
 ### 9. Tolerances
