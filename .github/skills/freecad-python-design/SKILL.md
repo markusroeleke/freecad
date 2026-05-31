@@ -146,6 +146,60 @@ polyhedron.solid
 quader = Quader(name="box", length=100, width=80, height=50, position=Vector(0, 0, 0))
 ```
 
+#### **Sphere** - Ball primitive
+```python
+sphere = Sphere(radius=20, position=Vector(0, 0, 0))
+sphere.solid
+```
+
+#### **Cone** - Cone or truncated cone
+```python
+# Sharp cone (radius2=0)
+cone = Cone("tip", radius1=15, radius2=0, height=40, position=Vector(0, 0, 0), normal=Vector(0, 0, 1))
+
+# Truncated cone (frustum)
+frustum = Cone("frustum", radius1=20, radius2=10, height=30)
+
+# Properties:
+cone.radius1, cone.radius2, cone.height
+cone.solid
+```
+
+#### **Torus** - Donut / ring shape
+```python
+torus = Torus(radius_major=30, radius_minor=8, position=Vector(0, 0, 0), normal=Vector(0, 0, 1))
+torus.solid
+```
+
+#### **Bullet** - Cylinder with hemispherical tip
+```python
+# Total height includes the hemisphere radius at the top
+bullet = Bullet("proj", diameter=10, height=30, position=Vector(0, 0, 0), normal=Vector(0, 0, 1))
+# → cylinder from z=0..25 plus hemisphere of r=5 at z=25..30
+bullet.solid
+```
+
+#### **Tube** - Hollow cylinder (pipe)
+```python
+tube = Tube("pipe", outer_diameter=20, wall_thickness=2, height=50, position=Vector(0, 0, 0))
+tube.inner_diameter  # = outer_diameter - 2 * wall_thickness
+tube.solid
+```
+
+#### **Wedge** - Triangular prism
+```python
+# Isosceles triangle in XZ plane, extruded along Y
+wedge = Wedge("ramp", length=40, width=20, height=15, position=Vector(0, 0, 0))
+wedge.solid
+```
+
+#### **Ellipsoid** - Scaled sphere
+```python
+# Semi-axes rx (X), ry (Y), rz (Z)
+egg = Ellipsoid(rx=15, ry=15, rz=25, position=Vector(0, 0, 0))
+egg.solid
+```
+
 ### 4. Hardware Components (DIN/ISO Standard)
 
 #### **Nut** - Hexagonal nut with clearance
@@ -200,9 +254,63 @@ body = body.cut(hole.solid)
 
 # Intersection (keep only overlapping volume)
 body = body.common(overlap.solid)
+
+# Fuse a list of solids in one call
+body = fuse_all([part1, part2, part3])
+
+# Cut multiple shapes from a base in one call
+body = cut_all(base, [hole1, hole2, slot])
 ```
 
-### 6. Visualization & Display
+### 6. Transformations
+
+#### **move / translate** - Shift a solid
+```python
+moved = move(solid, Vector(10, 0, 0))      # shift 10 mm in X
+moved = translate(solid, Vector(0, 5, 0))  # alias
+```
+
+#### **rotate** - Rotate a solid
+```python
+# rotate(solid, angle_deg, axis, center)
+rotated = rotate(solid, 45)                                  # 45° around Z at origin
+rotated = rotate(solid, 90, Vector(1, 0, 0))                 # 90° around X
+rotated = rotate(solid, 30, Vector(0, 0, 1), Vector(5, 5, 0))  # 30° around Z at (5,5,0)
+```
+
+#### **mirror** - Mirror a solid
+```python
+mirrored   = mirror(solid, plane_normal=Vector(1, 0, 0), plane_origin=Vector(0, 0, 0))
+mirrored_x = mirror_x(solid, x=0)   # mirror across YZ plane at x=0
+mirrored_y = mirror_y(solid, y=10)  # mirror across XZ plane at y=10
+mirrored_z = mirror_z(solid, z=5)   # mirror across XY plane at z=5
+```
+
+#### **scale** - Uniform scaling from origin
+```python
+bigger = scale(solid, 1.5)   # 150 %
+smaller = scale(solid, 0.5)  # 50 %
+```
+
+### 7. Pattern / Array Utilities
+
+#### **array_linear** - Linear (rectangular) pattern
+```python
+# array_linear(solid, direction, count, spacing)
+row = array_linear(hole.solid, Vector(1, 0, 0), count=5, spacing=20)
+# → 5 copies along X, 20 mm apart (original at i=0 included)
+body = body.cut(row)
+```
+
+#### **array_polar** - Circular / polar pattern
+```python
+# array_polar(solid, count, axis, center)
+ring = array_polar(hole.solid, count=6, axis=Vector(0, 0, 1), center=Vector(0, 0, 0))
+# → 6 copies evenly distributed at 60° intervals
+body = body.cut(ring)
+```
+
+### 8. Visualization & Display
 
 #### **show()** - Display shape with transparency and color
 ```python
@@ -233,7 +341,7 @@ clearance = {
 }
 ```
 
-### 7. Tolerances
+### 9. Tolerances
 
 #### **GeneralTolerances** - DIN ISO 2768 lookup
 ```python
@@ -286,6 +394,34 @@ part = Cylinder("bolt", 5, 20)
 # Add generous clearance for assembly
 clearance = Cylinder("clearance", 5.5, 22, Vector(0, 0, -1))
 assembly_space = assembly_space.fuse(clearance.solid)
+```
+
+### Pattern 4: Symmetry with Mirror
+```python
+# Design one half, mirror it, fuse
+half = Box(Vector(0, 0, 0), Vector(50, 30, 10)).solid
+slot = Cylinder("slot", 5, 10, Vector(25, 5, 0))
+half = half.cut(slot.solid)
+
+# Mirror across YZ plane and fuse both halves
+full = half.fuse(mirror_x(half))
+```
+
+### Pattern 5: Polar / Circular Patterns
+```python
+# 6 mounting holes on a bolt circle (Lochkreis)
+hole = Cylinder("hole", 3.5, 10, Vector(30, 0, 0))   # offset from center
+holes = array_polar(hole.solid, count=6)               # 60° steps
+body = body.cut(holes)
+```
+
+### Pattern 6: Linear Array / Grid
+```python
+# 3×4 grid of pins
+pin = Cylinder("pin", 2, 5, Vector(0, 0, 10))
+row = array_linear(pin.solid, Vector(1, 0, 0), count=3, spacing=10)
+grid = array_linear(row, Vector(0, 1, 0), count=4, spacing=10)
+body = body.fuse(grid)
 ```
 
 ## Common Tasks
@@ -374,6 +510,8 @@ fonts/
 6. **Boolean operation order**: Apply cuts last to prevent floating geometry
 7. **Export early and often**: Verify STL output matches your expectations before final assembly
 8. **Color coding**: Use different colors for different functional areas (red=cutting surfaces, blue=mounting, etc.)
+9. **Transformations return new solids**: `move`, `rotate`, `mirror`, `scale` never modify the original — always assign the result
+10. **Patterns produce fused solids**: `array_linear` / `array_polar` return one ready-to-use solid (or cut shape)
 
 ## Reference: Available DIN Components
 

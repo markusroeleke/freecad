@@ -30,8 +30,13 @@ def show(part, transparancy=50, color=(0.5, 0.5, 0.5), name="body"):
 
     return bodyFeature
 
+
 def export(doc, obj):
-    Mesh.export([FreeCAD.getDocument(doc).getObject(obj)], f"/Users/Markus/Documents/Projekte/FreeCAD/stl/{obj}.stl")
+    Mesh.export(
+        [FreeCAD.getDocument(doc).getObject(obj)],
+        f"/Users/Markus/Documents/Projekte/FreeCAD/stl/{obj}.stl",
+    )
+
 
 ############################################################################################################
 # DIN / ISO size konstants
@@ -244,12 +249,13 @@ class Flat:
             if not vertexB.isEqual(vertexC, 0):
                 edges.append(Part.LineSegment(vertexB, vertexC).toShape())
             vertexD = vertexC + (bc * (self.v[k] - vertexC))
-        #print(edges)
+        # print(edges)
         self.wire = Part.Wire(edges)
-        #print(self.wire)
+        # print(self.wire)
         self.face = Part.Face(self.wire)
         if self.normal.isEqual(Vector(0, 0, 0), 0):
             self.normal = self.face.normalAt(0, 0)
+
 
 # Vectors (v) : (x), (y), (2)
 class Box:
@@ -324,7 +330,13 @@ class Polyhedron:
 
 class SolidText:
     def __init__(
-        self, text, position=Vector(0, 0, 0), height=-1, txt_height=6, spacing=0.5, font="TC_LaserSans.TTF"
+        self,
+        text,
+        position=Vector(0, 0, 0),
+        height=-1,
+        txt_height=6,
+        spacing=0.5,
+        font="TC_LaserSans.TTF",
     ):
         self.position = position
         self.height = height
@@ -386,10 +398,10 @@ class Cylinder(Polyhedron):
 
 class Nut(Polyhedron):
     def __init__(
-        self, 
-        name, 
-        size: NUT_SIZES, 
-        position=Vector(0, 0, 0), 
+        self,
+        name,
+        size: NUT_SIZES,
+        position=Vector(0, 0, 0),
         normal=Vector(0, 0, 1),
         screw_type: Literal["normal", "slide"] = "normal",
     ):
@@ -521,28 +533,341 @@ class Screw(Polyhedron):
             self.thread_diameter + tolerances.get_tolerance(self.thread_diameter, "v")
         )
 
-        polygon1 = Polygon(
-            self.position,
-            self.clearance_head_diameter/2,
-            self.normal
-        )
+        polygon1 = Polygon(self.position, self.clearance_head_diameter / 2, self.normal)
         polygon2 = Polygon(
             self.position + self.clearance_head_height * self.normal,
-            self.clearance_head_diameter/2,
-            self.normal
+            self.clearance_head_diameter / 2,
+            self.normal,
         )
         polygon3 = Polygon(
             self.position + self.clearance_head_height * self.normal,
-            self.clearance_thread_diameter/2,
-            self.normal
+            self.clearance_thread_diameter / 2,
+            self.normal,
         )
 
         polygon4 = Polygon(
             self.position - self.clearance_thread_length * self.normal,
-            self.clearance_thread_diameter/2,
-            self.normal
+            self.clearance_thread_diameter / 2,
+            self.normal,
         )
         self.head_clearance = Polyhedron(polygon1, polygon2)
         self.thread_clearance = Polyhedron(polygon3, polygon4)
 
         self.solid = self.head_clearance.solid.fuse(self.thread_clearance.solid)
+
+
+###############################################################################
+# Transformation Functions
+
+
+def move(solid, vector: Vector):
+    """Translate/move a solid by a vector offset. Returns a new solid."""
+    result = solid.copy()
+    result.translate(vector)
+    return result
+
+
+def translate(solid, vector: Vector):
+    """Alias for move(). Translate a solid by a vector offset. Returns a new solid."""
+    return move(solid, vector)
+
+
+def rotate(
+    solid,
+    angle_deg: float,
+    axis: Vector = Vector(0, 0, 1),
+    center: Vector = Vector(0, 0, 0),
+):
+    """Rotate a solid around *axis* by *angle_deg* degrees around *center*. Returns a new solid."""
+    result = solid.copy()
+    result.rotate(center, axis, angle_deg)
+    return result
+
+
+def mirror(
+    solid,
+    plane_normal: Vector = Vector(1, 0, 0),
+    plane_origin: Vector = Vector(0, 0, 0),
+):
+    """Mirror a solid across a plane defined by *plane_origin* and *plane_normal*. Returns a new solid."""
+    return solid.mirror(plane_origin, plane_normal)
+
+
+def mirror_x(solid, x: float = 0):
+    """Mirror a solid across the YZ plane at x=*x*. Returns a new solid."""
+    return solid.mirror(Vector(x, 0, 0), Vector(1, 0, 0))
+
+
+def mirror_y(solid, y: float = 0):
+    """Mirror a solid across the XZ plane at y=*y*. Returns a new solid."""
+    return solid.mirror(Vector(0, y, 0), Vector(0, 1, 0))
+
+
+def mirror_z(solid, z: float = 0):
+    """Mirror a solid across the XY plane at z=*z*. Returns a new solid."""
+    return solid.mirror(Vector(0, 0, z), Vector(0, 0, 1))
+
+
+def scale(solid, factor: float):
+    """Scale a solid uniformly from the origin by *factor*. Returns a new solid."""
+    mat = FreeCAD.Matrix()
+    mat.scale(factor, factor, factor)
+    return solid.transformGeometry(mat)
+
+
+###############################################################################
+# Boolean Utilities
+
+
+def fuse_all(solids):
+    """Fuse a list of solids into one combined solid."""
+    return functools.reduce(lambda a, b: a.fuse(b), solids)
+
+
+def cut_all(base, cutters):
+    """Cut every solid in *cutters* from *base*. Returns one solid."""
+    return functools.reduce(lambda a, b: a.cut(b), [base] + list(cutters))
+
+
+###############################################################################
+# Pattern / Array Utilities
+
+
+def array_linear(solid, direction: Vector, count: int, spacing: float):
+    """Create a linear array of *count* copies of *solid*, spaced *spacing* mm apart
+    along *direction*. The original (i=0) is included. Returns one fused solid."""
+    copies = [solid]
+    unit = direction.normalize()
+    for i in range(1, count):
+        copy = solid.copy()
+        copy.translate(unit * (spacing * i))
+        copies.append(copy)
+    return fuse_all(copies)
+
+
+def array_polar(
+    solid, count: int, axis: Vector = Vector(0, 0, 1), center: Vector = Vector(0, 0, 0)
+):
+    """Create a polar/circular array of *count* copies of *solid* evenly distributed
+    around *axis* passing through *center*. The original (angle=0) is included.
+    Returns one fused solid."""
+    copies = [solid]
+    angle_step = 360.0 / count
+    for i in range(1, count):
+        copy = solid.copy()
+        copy.rotate(center, axis, angle_step * i)
+        copies.append(copy)
+    return fuse_all(copies)
+
+
+###############################################################################
+# Additional Shape Classes
+
+
+class Sphere:
+    """Sphere primitive.
+
+    Args:
+        radius:   sphere radius in mm.
+        position: center of the sphere.
+    """
+
+    def __init__(self, radius: float, position: Vector = Vector(0, 0, 0)):
+        self.radius = radius
+        self.position = position
+        self.solid = Part.makeSphere(radius, position)
+
+
+class Cone:
+    """Cone or truncated cone.
+
+    Args:
+        name:     identifier string.
+        radius1:  base radius at *position* (mm).
+        radius2:  top radius at position + height * normal (mm); use 0 for a sharp tip.
+        height:   height along *normal* (mm).
+        position: base center point.
+        normal:   axis direction (default Z+).
+    """
+
+    def __init__(
+        self,
+        name: str,
+        radius1: float,
+        radius2: float,
+        height: float,
+        position: Vector = Vector(0, 0, 0),
+        normal: Vector = Vector(0, 0, 1),
+    ):
+        self.name = name
+        self.radius1 = radius1
+        self.radius2 = radius2
+        self.height = height
+        self.position = position
+        self.normal = normal
+        self.solid = Part.makeCone(radius1, radius2, height, position, normal)
+
+
+class Torus:
+    """Torus (donut) shape.
+
+    Args:
+        radius_major: distance from torus center to the center of the tube (mm).
+        radius_minor: radius of the tube cross-section (mm).
+        position:     center of the torus.
+        normal:       axis direction (default Z+).
+    """
+
+    def __init__(
+        self,
+        radius_major: float,
+        radius_minor: float,
+        position: Vector = Vector(0, 0, 0),
+        normal: Vector = Vector(0, 0, 1),
+    ):
+        self.radius_major = radius_major
+        self.radius_minor = radius_minor
+        self.position = position
+        self.normal = normal
+        self.solid = Part.makeTorus(radius_major, radius_minor, position, normal)
+
+
+class Bullet:
+    """Cylinder with a hemispherical cap on one end.
+
+    The flat base is at *position*; the rounded tip points along *normal*.
+    If *height* <= *radius* the shape degenerates to a hemisphere only.
+
+    Args:
+        name:     identifier string.
+        diameter: diameter of both the cylinder and the hemisphere (mm).
+        height:   total length from flat base to tip of hemisphere (mm).
+        position: center of the flat base circle.
+        normal:   axis direction (default Z+).
+    """
+
+    def __init__(
+        self,
+        name: str,
+        diameter: float,
+        height: float,
+        position: Vector = Vector(0, 0, 0),
+        normal: Vector = Vector(0, 0, 1),
+    ):
+        self.name = name
+        self.diameter = diameter
+        self.height = height
+        self.radius = diameter / 2
+        self.position = position
+        self.normal = normal
+
+        r = self.radius
+        cyl_height = max(0.0, height - r)
+        hemi_pos = position + cyl_height * normal
+        # angle1=0 → angle2=90 gives the upper hemisphere along *normal*
+        hemi = Part.makeSphere(r, hemi_pos, normal, 0, 90, 360)
+        if cyl_height > 0:
+            cyl = Part.makeCylinder(r, cyl_height, position, normal)
+            self.solid = cyl.fuse(hemi)
+        else:
+            self.solid = hemi
+
+
+class Tube:
+    """Hollow cylinder (pipe / tube).
+
+    Args:
+        name:            identifier string.
+        outer_diameter:  outer diameter (mm).
+        wall_thickness:  wall thickness (mm); inner diameter = outer - 2 * wall.
+        height:          length of the tube (mm).
+        position:        center of the bottom face.
+        normal:          axis direction (default Z+).
+    """
+
+    def __init__(
+        self,
+        name: str,
+        outer_diameter: float,
+        wall_thickness: float,
+        height: float,
+        position: Vector = Vector(0, 0, 0),
+        normal: Vector = Vector(0, 0, 1),
+    ):
+        self.name = name
+        self.outer_diameter = outer_diameter
+        self.wall_thickness = wall_thickness
+        self.inner_diameter = outer_diameter - 2 * wall_thickness
+        self.height = height
+        self.position = position
+        self.normal = normal
+        outer = Part.makeCylinder(outer_diameter / 2, height, position, normal)
+        inner = Part.makeCylinder(self.inner_diameter / 2, height, position, normal)
+        self.solid = outer.cut(inner)
+
+
+class Wedge:
+    """Triangular prism (wedge).
+
+    The isoceles triangle base lies in the XZ plane at *position* and is
+    extruded along the Y axis by *width*.
+
+    Args:
+        name:     identifier string.
+        length:   base length of the triangle (X direction, mm).
+        width:    extrusion depth (Y direction, mm).
+        height:   height of the triangle / wedge (Z direction, mm).
+        position: lower-left corner of the triangle (West, South, Down).
+    """
+
+    def __init__(
+        self,
+        name: str,
+        length: float,
+        width: float,
+        height: float,
+        position: Vector = Vector(0, 0, 0),
+    ):
+        self.name = name
+        self.length = length
+        self.width = width
+        self.height = height
+        self.position = position
+        px, py, pz = position.x, position.y, position.z
+        v1 = Vector(px, py, pz)
+        v2 = Vector(px + length, py, pz)
+        v3 = Vector(px + length / 2, py, pz + height)
+        flat = Flat([v1, v2, v3, v1])
+        self.solid = flat.face.extrude(Vector(0, width, 0))
+
+
+class Ellipsoid:
+    """Ellipsoid (axis-aligned scaled sphere).
+
+    A unit sphere is scaled non-uniformly to form an ellipsoid with
+    semi-axes *rx*, *ry*, *rz*.
+
+    Args:
+        rx:       semi-axis along X (mm).
+        ry:       semi-axis along Y (mm).
+        rz:       semi-axis along Z (mm).
+        position: center of the ellipsoid.
+    """
+
+    def __init__(
+        self,
+        rx: float,
+        ry: float,
+        rz: float,
+        position: Vector = Vector(0, 0, 0),
+    ):
+        self.rx = rx
+        self.ry = ry
+        self.rz = rz
+        self.position = position
+        sphere = Part.makeSphere(1.0)
+        mat = FreeCAD.Matrix()
+        mat.scale(rx, ry, rz)
+        self.solid = sphere.transformGeometry(mat)
+        if not position.isEqual(Vector(0, 0, 0), 1e-7):
+            self.solid.translate(position)
