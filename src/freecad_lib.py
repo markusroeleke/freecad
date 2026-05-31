@@ -31,6 +31,18 @@ def show(part, transparancy=50, color=(0.5, 0.5, 0.5), name="body"):
     return bodyFeature
 
 
+def show_solid(solid, transparancy=50, color=(0.5, 0.5, 0.5), name="body"):
+    """Like show(), but accepts a raw Part.Shape solid directly.
+
+    Useful after boolean operations (body.cut / body.fuse) which return a plain
+    Part solid rather than a freecad_lib object with a .solid attribute.
+    """
+    bodyFeature = Part.show(solid, name)
+    bodyFeature.ViewObject.Transparency = transparancy
+    bodyFeature.ViewObject.ShapeColor = color
+    return bodyFeature
+
+
 def export(doc, obj):
     Mesh.export(
         [FreeCAD.getDocument(doc).getObject(obj)],
@@ -106,6 +118,53 @@ SCREW_SIZES = Literal[
     "M8",
     "M10",
 ]
+
+# DIN 7991 / ISO 10642 flat-head (countersunk) socket-cap screws
+COUNTERSINK_MAP = {
+    "M2": {"dK": 3.8, "d": 2.4, "k": 1.3},
+    "M2.5": {"dK": 4.7, "d": 2.9, "k": 1.6},
+    "M3": {"dK": 5.6, "d": 3.4, "k": 1.7},
+    "M4": {"dK": 7.5, "d": 4.5, "k": 2.3},
+    "M5": {"dK": 9.4, "d": 5.5, "k": 2.8},
+    "M6": {"dK": 11.0, "d": 6.6, "k": 3.3},
+    "M8": {"dK": 15.0, "d": 9.0, "k": 4.4},
+    "M10": {"dK": 18.0, "d": 11.0, "k": 5.5},
+}
+
+# Standard deep-groove ball bearings (bore mm, OD mm, width mm)
+BEARING_MAP = {
+    "608": {"bore": 8, "OD": 22, "width": 7},
+    "624": {"bore": 4, "OD": 13, "width": 5},
+    "625": {"bore": 5, "OD": 16, "width": 5},
+    "626": {"bore": 6, "OD": 19, "width": 6},
+    "688": {"bore": 8, "OD": 16, "width": 4},
+    "6200": {"bore": 10, "OD": 30, "width": 9},
+    "6201": {"bore": 12, "OD": 32, "width": 10},
+    "6202": {"bore": 15, "OD": 35, "width": 11},
+    "6203": {"bore": 17, "OD": 40, "width": 12},
+    "6204": {"bore": 20, "OD": 47, "width": 14},
+}
+
+# Heat-set threaded brass inserts (Ruthex / CNC Kitchen standard pocket sizes)
+HEAT_SET_INSERT_MAP = {
+    "M2": {"pocket_d": 3.6, "pocket_l": 3.4},
+    "M3": {"pocket_d": 4.7, "pocket_l": 6.0},
+    "M4": {"pocket_d": 5.7, "pocket_l": 8.5},
+    "M5": {"pocket_d": 7.0, "pocket_l": 10.0},
+}
+
+# Neodymium disc / cylinder magnets (diameter x height in mm)
+MAGNET_SIZES = {
+    "5x1": {"D": 5, "H": 1},
+    "5x2": {"D": 5, "H": 2},
+    "6x2": {"D": 6, "H": 2},
+    "8x2": {"D": 8, "H": 2},
+    "10x2": {"D": 10, "H": 2},
+    "10x3": {"D": 10, "H": 3},
+    "12x2": {"D": 12, "H": 2},
+    "12x3": {"D": 12, "H": 3},
+    "20x3": {"D": 20, "H": 3},
+}
 
 
 class GeneralTolerances:
@@ -871,3 +930,352 @@ class Ellipsoid:
         self.solid = sphere.transformGeometry(mat)
         if not position.isEqual(Vector(0, 0, 0), 1e-7):
             self.solid.translate(position)
+
+
+###############################################################################
+# 3D-Print Utility Shapes
+
+
+class Capsule:
+    """Cylinder with hemispherical caps on both ends (pill / capsule shape).
+
+    Total height includes both half-spheres, so the cylindrical section has
+    length = height - diameter.  If height <= diameter the result is a full
+    sphere.
+
+    Args:
+        name:     identifier string.
+        diameter: diameter of the capsule (mm).
+        height:   total height from bottom pole to top pole (mm).
+        position: center of the bottom hemisphere pole (z=0 of the capsule).
+        normal:   axis direction (default Z+).
+    """
+
+    def __init__(
+        self,
+        name: str,
+        diameter: float,
+        height: float,
+        position: Vector = Vector(0, 0, 0),
+        normal: Vector = Vector(0, 0, 1),
+    ):
+        self.name = name
+        self.diameter = diameter
+        r = diameter / 2
+        self.height = max(height, diameter)
+        self.position = position
+        self.normal = normal
+
+        cyl_length = self.height - 2 * r
+        bottom_center = position + r * normal
+        top_center = position + (self.height - r) * normal
+
+        bottom_hemi = Part.makeSphere(r, bottom_center, normal, -90, 0, 360)
+        top_hemi = Part.makeSphere(r, top_center, normal, 0, 90, 360)
+
+        if cyl_length > 1e-6:
+            cyl = Part.makeCylinder(r, cyl_length, bottom_center, normal)
+            self.solid = bottom_hemi.fuse(cyl).fuse(top_hemi)
+        else:
+            self.solid = Part.makeSphere(r, bottom_center)
+
+
+class Slot:
+    """Elongated hole / oblong slot (rounded-rectangle profile extruded along normal).
+
+    Creates two semicircular end caps connected by a rectangular body.  The
+    slot is centered at *position* and extends along *direction*.
+
+    Args:
+        name:      identifier string.
+        length:    overall length including the two end semicircles (mm).
+        width:     slot width = end circle diameter (mm).  Must be <= length.
+        depth:     extrusion depth along *normal* (mm).
+        position:  center of the slot profile on the face.
+        normal:    extrusion direction (default Z+).
+        direction: elongation direction in the face plane (default X+).
+    """
+
+    def __init__(
+        self,
+        name: str,
+        length: float,
+        width: float,
+        depth: float,
+        position: Vector = Vector(0, 0, 0),
+        normal: Vector = Vector(0, 0, 1),
+        direction: Vector = Vector(1, 0, 0),
+    ):
+        self.name = name
+        self.length = length
+        self.width = width
+        self.depth = depth
+        self.position = position
+        self.normal = normal
+
+        r = width / 2
+        center_dist = max(0.0, length - width)
+        dir_unit = direction.normalize()
+
+        c1 = position - dir_unit * (center_dist / 2)
+        c2 = position + dir_unit * (center_dist / 2)
+
+        cyl1 = Part.makeCylinder(r, depth, c1, normal)
+
+        if center_dist > 1e-6:
+            cyl2 = Part.makeCylinder(r, depth, c2, normal)
+            # width direction: perpendicular to both normal and dir_unit
+            perp = normal.cross(dir_unit).normalize()
+            p1 = c1 + perp * r
+            p2 = c2 + perp * r
+            p3 = c2 - perp * r
+            p4 = c1 - perp * r
+            # use Flat so the face is guaranteed planar
+            rect_face = Flat([p1, p2, p3, p4, p1]).face
+            rect_solid = rect_face.extrude(normal * depth)
+            self.solid = cyl1.fuse(cyl2).fuse(rect_solid)
+        else:
+            self.solid = cyl1
+
+
+class CountersinkHole:
+    """Through-hole with a conical chamfered entry for flat-head (countersunk) screws.
+
+    The cone opens at *position* (flush with the top face) and tapers down to
+    *hole_diameter*.  The remaining *depth* continues as a plain cylinder.
+    Use ``COUNTERSINK_MAP`` for standard DIN 7991 / ISO 10642 dimensions.
+
+    Args:
+        name:                  identifier.
+        hole_diameter:         core hole / clearance diameter (mm).
+        countersink_diameter:  outer diameter of the cone opening (mm).
+        depth:                 depth of the plain cylinder section below the cone (mm).
+        position:              center of the top face (cone entry).
+        normal:                direction going INTO the material (default Z+).
+        angle:                 countersink half-angle in degrees (default 45 → 90° included angle).
+
+    Example (M3 countersink)::
+
+        cs = CountersinkHole("cs_m3",
+                             hole_diameter=COUNTERSINK_MAP["M3"]["d"],
+                             countersink_diameter=COUNTERSINK_MAP["M3"]["dK"],
+                             depth=10)
+        body = body.cut(cs.solid)
+    """
+
+    def __init__(
+        self,
+        name: str,
+        hole_diameter: float,
+        countersink_diameter: float,
+        depth: float,
+        position: Vector = Vector(0, 0, 0),
+        normal: Vector = Vector(0, 0, 1),
+        angle: float = 45.0,
+    ):
+        self.name = name
+        cs_depth = (
+            (countersink_diameter - hole_diameter) / 2 / math.tan(math.radians(angle))
+        )
+        cone = Part.makeCone(
+            countersink_diameter / 2, hole_diameter / 2, cs_depth, position, normal
+        )
+        cyl_pos = position + cs_depth * normal
+        cyl = Part.makeCylinder(hole_diameter / 2, depth, cyl_pos, normal)
+        self.solid = cone.fuse(cyl)
+
+
+class CounterboreHole:
+    """Through-hole with a flat-bottomed cylindrical recess (counterbore) for socket-head cap screws.
+
+    Args:
+        name:          identifier.
+        hole_diameter: core hole / clearance diameter (mm).
+        bore_diameter: counterbore diameter — use screw head diameter + clearance (mm).
+        bore_depth:    depth of the wide recess — use screw head height + clearance (mm).
+        total_depth:   total hole depth (mm).  Must be >= bore_depth.
+        position:      center of the top face.
+        normal:        direction going INTO the material (default Z+).
+
+    Example (M5 socket-head screw, head dK=8.5mm, head height k=4mm)::
+
+        cb = CounterboreHole("cb_m5",
+                             hole_diameter=5.5,
+                             bore_diameter=9.0,
+                             bore_depth=5.0,
+                             total_depth=20)
+        body = body.cut(cb.solid)
+    """
+
+    def __init__(
+        self,
+        name: str,
+        hole_diameter: float,
+        bore_diameter: float,
+        bore_depth: float,
+        total_depth: float,
+        position: Vector = Vector(0, 0, 0),
+        normal: Vector = Vector(0, 0, 1),
+    ):
+        self.name = name
+        bore = Part.makeCylinder(bore_diameter / 2, bore_depth, position, normal)
+        cyl_pos = position + bore_depth * normal
+        cyl = Part.makeCylinder(
+            hole_diameter / 2, total_depth - bore_depth, cyl_pos, normal
+        )
+        self.solid = bore.fuse(cyl)
+
+
+class NutTrap:
+    """Blind hexagonal pocket to capture a DIN nut inside a 3D-printed part.
+
+    The pocket is sized with a coarse tolerance so the nut slides in but
+    cannot rotate.  Cut this solid from your part body.
+
+    Args:
+        name:        identifier.
+        size:        nut size string (same keys as NUT_MAP, e.g. ``"M3"``).
+        position:    center of the pocket opening on the face.
+        normal:      direction going INTO the material (default Z+).
+        extra_depth: additional depth beyond the nut height (mm), e.g. for a thin
+                     layer of plastic that holds the nut in place.
+
+    Example::
+
+        trap = NutTrap("nut_trap", "M3", Vector(0, 0, 0))
+        body = body.cut(trap.solid)
+    """
+
+    def __init__(
+        self,
+        name: str,
+        size: NUT_SIZES,
+        position: Vector = Vector(0, 0, 0),
+        normal: Vector = Vector(0, 0, 1),
+        extra_depth: float = 0.0,
+    ):
+        self.name = name
+        tolerances = GeneralTolerances()
+        nut_height = NUT_MAP[size]["H"]
+        nut_radius = NUT_MAP[size]["AF"] / math.sqrt(3)
+        pocket_radius = nut_radius + tolerances.get_tolerance(nut_radius, "c")
+        pocket_depth = (
+            nut_height + tolerances.get_tolerance(nut_height, "c") + extra_depth
+        )
+        p1 = Polygon(position, pocket_radius, normal, sides=6)
+        p2 = Polygon(position + pocket_depth * normal, pocket_radius, normal, sides=6)
+        self.solid = Polyhedron(p1, p2).solid
+
+
+class HeatSetInsert:
+    """Cylindrical pocket for a heat-set threaded brass insert (Ruthex / CNC Kitchen standard).
+
+    Heat-set inserts are pressed in with a soldering iron.  Cut this pocket
+    from your part body.  The pocket diameter is slightly larger than the
+    insert OD so the knurling bites into the plastic when heated.
+
+    Sizes in ``HEAT_SET_INSERT_MAP``: M2, M3, M4, M5.
+
+    Args:
+        name:     identifier.
+        size:     ``"M2"``, ``"M3"``, ``"M4"``, or ``"M5"``.
+        position: center of the pocket opening.
+        normal:   direction going INTO the material (default Z+).
+
+    Example::
+
+        ins = HeatSetInsert("hs_m3", "M3", Vector(0, 0, 10), Vector(0, 0, -1))
+        body = body.cut(ins.solid)
+    """
+
+    def __init__(
+        self,
+        name: str,
+        size: str,
+        position: Vector = Vector(0, 0, 0),
+        normal: Vector = Vector(0, 0, 1),
+    ):
+        self.name = name
+        pd = HEAT_SET_INSERT_MAP[size]["pocket_d"]
+        pl = HEAT_SET_INSERT_MAP[size]["pocket_l"]
+        self.solid = Part.makeCylinder(pd / 2, pl, position, normal)
+
+
+class BearingPocket:
+    """Cylindrical press-fit pocket for a standard deep-groove ball bearing.
+
+    Cut this from your part body.  Add a separate shaft hole for the bore.
+    Standard bearing types are in ``BEARING_MAP``.
+
+    Args:
+        name:         identifier.
+        bearing_type: bearing designation string, e.g. ``"608"``, ``"625"``.
+        position:     center of the pocket opening face.
+        normal:       direction going INTO the part (default Z+).
+        tolerance:    DIN ISO 2768 class for the pocket diameter.
+                      ``"f"`` (fine, press-fit) is the default for bearings.
+
+    Properties:
+        bore:            bearing bore diameter (mm).
+        outer_diameter:  bearing outer diameter (mm).
+        bearing_width:   bearing width / depth of pocket (mm).
+
+    Example::
+
+        pocket = BearingPocket("bp608", "608", Vector(0, 0, 0))
+        body = body.cut(pocket.solid)
+        # shaft hole
+        shaft = Cylinder("shaft", pocket.bore, 30, Vector(0, 0, 0))
+        body = body.cut(shaft.solid)
+    """
+
+    def __init__(
+        self,
+        name: str,
+        bearing_type: str,
+        position: Vector = Vector(0, 0, 0),
+        normal: Vector = Vector(0, 0, 1),
+        tolerance: str = "f",
+    ):
+        self.name = name
+        b = BEARING_MAP[bearing_type]
+        self.bore = b["bore"]
+        self.outer_diameter = b["OD"]
+        self.bearing_width = b["width"]
+        tolerances = GeneralTolerances()
+        pocket_r = b["OD"] / 2 + tolerances.get_tolerance(b["OD"] / 2, tolerance)
+        self.solid = Part.makeCylinder(pocket_r, b["width"], position, normal)
+
+
+class MagnetPocket:
+    """Blind cylindrical recess sized for a standard neodymium disc magnet.
+
+    Cut this from your part body.  Standard sizes are in ``MAGNET_SIZES``.
+
+    Args:
+        name:         identifier.
+        magnet_size:  size key string, e.g. ``"10x2"`` (diameter x height in mm).
+        position:     center of the pocket opening face.
+        normal:       direction going INTO the material (default Z+).
+        clearance:    radial AND depth clearance in mm added to the magnet dimensions
+                      (default 0.2 mm — snug fit; use 0.3 for easy insertion).
+
+    Example::
+
+        mag = MagnetPocket("mag", "10x2", Vector(0, 0, 0))
+        body = body.cut(mag.solid)
+    """
+
+    def __init__(
+        self,
+        name: str,
+        magnet_size: str,
+        position: Vector = Vector(0, 0, 0),
+        normal: Vector = Vector(0, 0, 1),
+        clearance: float = 0.2,
+    ):
+        self.name = name
+        m = MAGNET_SIZES[magnet_size]
+        pocket_r = m["D"] / 2 + clearance
+        pocket_depth = m["H"] + clearance
+        self.solid = Part.makeCylinder(pocket_r, pocket_depth, position, normal)
