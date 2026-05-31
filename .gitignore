@@ -1,2 +1,1 @@
-__pycache__/freecad_lib.cpython-310.pyc
-stl/*.stl
+stl/**
